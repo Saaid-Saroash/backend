@@ -1,23 +1,120 @@
 :root{
-  --bg:#071222; --card:#0f1724; --muted:#9aa7b2; --accent:#60a5fa; --accent2:#3b82f6;
+  --bg:#071222;
+  --card:#0f1724;
+  --muted:#9aa7b2;
+  --accent:#60a5fa;
+  --accent2:#3b82f6;
+  --glass: rgba(255,255,255,0.03);
+  --radius:12px;
+  --gap:12px;
 }
-*{box-sizing:border-box;font-family:Inter,Segoe UI,Arial,sans-serif}
-html,body{height:100%;margin:0;background:linear-gradient(180deg,#071123,#071827);color:#e6eef6}
-.container{max-width:1100px;margin:32px auto;padding:18px;background:rgba(255,255,255,0.02);border-radius:12px;box-shadow:0 12px 40px rgba(0,0,0,0.6)}
+
+/* --- Reset & base --- */
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#071123,#071827);color:#e6eef6;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-family:Inter,Segoe UI,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}
+
+/* --- Layout container --- */
+.container{
+  max-width:1100px;
+  margin:32px auto;
+  padding:18px;
+  background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  border-radius:var(--radius);
+  box-shadow:0 12px 40px rgba(0,0,0,0.6);
+}
+
+/* header / small UI pieces */
 .header{display:flex;align-items:center;gap:12px}
-.title{font-weight:800}
+.title{font-weight:800;font-size:1.05rem}
 .row{display:flex;gap:12px;align-items:center}
+.small{color:var(--muted);font-size:0.92rem}
+
+/* boxes and panels */
 .box{background:var(--card);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
-.input{width:100%;padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit}
-.btn{padding:10px 12px;border-radius:8px;border:none;cursor:pointer;font-weight:700}
+.grid{display:grid;grid-template-columns:300px 1fr;gap:var(--gap);margin-top:14px}
+
+/* forms & inputs */
+.input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:0.98rem}
+.btn{padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:700;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
 .btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#021428}
-.grid{display:grid;grid-template-columns:300px 1fr;gap:12px;margin-top:14px}
-.folders{display:flex;flex-direction:column;gap:8px}
-.folder{padding:10px;border-radius:8px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));cursor:pointer;border:1px solid rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between}
+.link{color:var(--accent)}
+
+/* folder list */
+.folders{display:flex;flex-direction:column;gap:10px}
+.folder{padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));cursor:pointer;border:1px solid rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between;font-weight:700}
 .folder.locked{opacity:0.35;filter:grayscale(30%);cursor:not-allowed}
-.editor{min-height:320px;padding:12px;border-radius:8px;background:linear-gradient(180deg, rgba(0,0,0,0.12), rgba(255,255,255,0.01));outline:none;border:1px solid rgba(255,255,255,0.02);white-space:pre-wrap;overflow:auto}
+
+/* viewer pre (read-only file view) */
+.editor, pre.editor{
+  min-height:320px;
+  padding:14px;
+  border-radius:10px;
+  background:linear-gradient(180deg, rgba(0,0,0,0.12), rgba(255,255,255,0.01));
+  outline:none;
+  border:1px solid rgba(255,255,255,0.02);
+  white-space:pre-wrap;
+  overflow:auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;
+  font-size:0.95rem;
+  line-height:1.45;
+  color: #dceffb;
+}
+
+/* controls */
 .controls{display:flex;gap:8px;margin-top:10px;align-items:center}
-.small{color:var(--muted);font-size:0.9rem}
-.link{color:var(--accent);text-decoration:none}
+
+/* footer */
 footer{margin-top:14px;color:var(--muted);font-size:0.9rem;text-align:center}
-@media (max-width:900px){.grid{grid-template-columns:1fr}}
+
+/* --- PHONE / SMALL SCREEN RULES --- */
+@media (max-width:900px){
+  .grid{grid-template-columns:1fr}
+  .container{margin:18px;padding:14px}
+  .box{padding:12px}
+  .title{font-size:1rem}
+  .folder{padding:14px;border-radius:12px;font-size:1rem}
+  .folders{gap:10px}
+}
+
+/* make the login box centered and comfortable on phones */
+@media (max-width:600px){
+  /* full-width safe touch buttons */
+  .btn{width:100%;min-height:48px;border-radius:10px}
+  .row{flex-direction:row;gap:8px}
+  .header{align-items:flex-start}
+  .title{font-size:1.06rem}
+  .container{margin:12px;padding:12px}
+  .input{padding:12px;border-radius:10px;font-size:1rem}
+  .editor{font-size:0.95rem}
+}
+
+/* very small devices */
+@media (max-width:420px){
+  .title{font-size:1rem}
+  .input{padding:10px;font-size:0.96rem}
+  .folder{padding:12px;font-size:0.96rem}
+  pre.editor{font-size:0.92rem}
+}
+
+/* make sure viewer content is readable and not cramped */
+pre.editor::-webkit-scrollbar { height: 10px; width: 10px }
+pre.editor::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.04); border-radius:8px }
+
+/* Accessibility / focus */
+input:focus, .btn:focus, .folder:focus { outline: 3px solid rgba(96,165,250,0.12); outline-offset:2px }
+
+/* Small utility helpers */
+.centered-vertical {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height:100vh;
+  padding:12px;
+}
+
+/* Extra: allow horizontal scrolling for very long folder lists on tiny screens */
+@media (max-width:360px){
+  .folders{display:flex;flex-direction:row;gap:8px;overflow-x:auto;padding-bottom:6px}
+  .folder{min-width:160px;flex:0 0 auto}
+}

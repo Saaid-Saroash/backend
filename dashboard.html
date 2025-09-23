@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dashboard — Locked Folders</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="title">Locked Folders — Dashboard</div>
+      <div style="margin-left:auto" class="row">
+        <div id="userTag" class="small">not signed</div>
+        <button id="logoutBtn" class="btn" style="margin-left:8px">Logout</button>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:12px">
+      <div class="box">
+        <div class="small">Folders</div>
+        <div id="folders" class="folders" style="margin-top:10px"></div>
+      </div>
+      <div class="box">
+        <div class="small">Info</div>
+        <p style="margin-top:12px" class="small">Click a folder to open the editor. This is static-only — everything is stored in your browser localStorage.</p>
+        <div style="margin-top:12px">
+          <a class="link" href="login.html">Back to login</a>
+        </div>
+      </div>
+    </div>
+
+    <footer>Theme based on your provided file — local-only, GitHub Pages ready.</footer>
+  </div>
+
+  <script src="script.js"></script>
+  <script>LW.renderDashboard();</script>
+</body>
+</html>

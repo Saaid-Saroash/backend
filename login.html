@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Login — Locked Folders</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container box">
+    <div class="header">
+      <div class="title">Locked Folders — Login</div>
+    </div>
+    <form onsubmit="LW.attemptLogin(event)" style="margin-top:14px">
+      <input id="email" class="input" type="text" placeholder="Email" required />
+      <input id="password" class="input" type="password" placeholder="Password" required style="margin-top:8px"/>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="btn primary" type="submit">Sign in</button>
+        <button type="button" class="btn" onclick="LW.demoFill()">Fill creds</button>
+      </div>
+      <div style="margin-top:12px" class="small">Accounts:
+        <div class="small">hackersworld@backend.com / sro43kl</div>
+        <div class="small">saaidsaroash@personal.com / saaidsaroash772009</div>
+      </div>
+    </form>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>

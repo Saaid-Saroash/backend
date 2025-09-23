@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Editor — Locked Folders</title>
+  <title>Viewer — Locked Files</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,19 +17,11 @@
     </div>
 
     <div style="margin-top:12px" class="box">
-      <div id="editor" class="editor" contenteditable="true" spellcheck="true"></div>
-      <div class="controls">
-        <button id="saveBtn" class="btn primary">Save</button>
-        <button id="clearBtn" class="btn">Clear</button>
-        <button id="downloadBtn" class="btn">Download</button>
-        <div style="margin-left:auto" id="status" class="small">—</div>
-      </div>
+      <pre id="fileContent" class="editor"></pre>
     </div>
-
-    <footer>Saved content is stored in browser localStorage per account + folder.</footer>
   </div>
 
   <script src="script.js"></script>
-  <script>LW.initEditor();</script>
+  <script>LW.initViewer();</script>
 </body>
 </html>

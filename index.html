@@ -4,9 +4,12 @@
   <meta charset="utf-8">
   <title>Login — Locked Files</title>
   <link rel="stylesheet" href="style.css">
+  <!-- discourage caching -->
+  <meta http-equiv="cache-control" content="no-store">
+  <meta http-equiv="pragma" content="no-cache">
 </head>
-<body>
-  <div class="container box">
+<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;">
+  <div class="container box" style="width:420px;max-width:95%;">
     <div class="header">
       <div class="title">Locked Files — Login</div>
     </div>
@@ -15,8 +18,8 @@
       <input id="password" class="input" type="password" placeholder="Password" required style="margin-top:8px"/>
       <div style="display:flex;gap:8px;margin-top:10px">
         <button class="btn primary" type="submit">Sign in</button>
-        <button type="button" class="btn" onclick="LW.demoFill()">Fill creds</button>
       </div>
+      <div style="margin-top:12px" class="small">If you forgot credentials contact admin.</div>
     </form>
   </div>
   <script src="script.js"></script>

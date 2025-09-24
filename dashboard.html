@@ -2,34 +2,66 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Dashboard — Locked Files</title>
+  <title>Cosmos — Dashboard</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="style.css">
   <meta http-equiv="cache-control" content="no-store">
   <meta http-equiv="pragma" content="no-cache">
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="title">Locked Files — Dashboard</div>
-      <div style="margin-left:auto" class="row">
-        <div id="userTag" class="small">not signed</div>
-        <button id="logoutBtn" class="btn" style="margin-left:8px">Logout</button>
-      </div>
+  <!-- Top nav -->
+  <header class="topnav">
+    <button id="menuToggle" class="hamburger" aria-label="Open menu">☰</button>
+    <div class="nav-left">
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo"/>
+      <div class="site-title">Cosmos</div>
     </div>
+    <div class="nav-right">
+      <div id="userTag" class="small nav-user">not signed</div>
+      <button id="logoutBtnTop" class="btn nav-logout">Logout</button>
+    </div>
+  </header>
 
-    <div class="grid" style="margin-top:12px">
-      <div class="box">
-        <div class="small">Folders</div>
-        <div id="folders" class="folders" style="margin-top:10px"></div>
+  <!-- Slide menu -->
+  <nav id="sideMenu" class="side-menu" aria-hidden="true">
+    <div class="side-header">
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="side-logo"/>
+      <div class="side-title">Cosmos</div>
+    </div>
+    <ul class="side-list">
+      <li><a href="dashboard.html" onclick="closeMenu()">Home</a></li>
+      <li><a href="#" id="allFilesLink" onclick="showAllFiles(); closeMenu()">All Files</a></li>
+      <li><a href="#" onclick="alert('Feature: Search will be added')">Search</a></li>
+      <li><a href="#" onclick="alert('Feature: Favorites will be added')">Favorites</a></li>
+      <li><a href="#" onclick="alert('Feature: Help coming soon')">Help</a></li>
+      <li class="side-divider"></li>
+      <li><a href="#" id="logoutLink" onclick="LW.logoutFromMenu()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <div class="page-wrap" id="pageWrap">
+    <main class="container">
+      <div class="header" style="align-items:center;gap:18px">
+        <div class="title">Dashboard — Files</div>
       </div>
-      <div class="box">
-        <div class="small">Info</div>
-        <p style="margin-top:12px" class="small">Click a folder to view its file. Read-only — you cannot edit or save.</p>
-        <div style="margin-top:12px">
-          <a class="link" href="index.html">Back to login</a>
+
+      <div class="grid" style="margin-top:16px">
+        <div class="box">
+          <div class="small">Your files</div>
+          <div id="folders" class="folders" style="margin-top:10px"></div>
+        </div>
+
+        <div class="box">
+          <div class="small">Quick actions</div>
+          <div style="margin-top:12px" class="small">
+            Tap a file to open it. Use the menu (☰) to see features and logout.
+          </div>
+          <div style="margin-top:14px">
+            <button id="openAllBtn" class="btn">Open first file</button>
+          </div>
         </div>
       </div>
-    </div>
+    </main>
   </div>
 
   <script src="script.js"></script>

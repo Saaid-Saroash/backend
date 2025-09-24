@@ -2,27 +2,33 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Cosmos — Dashboard</title>
+  <title>cosmos-dashboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link id="favicon" rel="icon" href="assets/cosmos.jpg">
   <link rel="stylesheet" href="style.css">
   <meta http-equiv="cache-control" content="no-store">
   <meta http-equiv="pragma" content="no-cache">
 </head>
 <body>
-  <!-- Top nav -->
   <header class="topnav">
     <button id="menuToggle" class="hamburger" aria-label="Open menu">☰</button>
+
     <div class="nav-left">
       <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo"/>
       <div class="site-title">Cosmos</div>
     </div>
+
+    <div class="nav-mid">
+      <input id="searchInput" class="input" placeholder="Search files or contents..." style="width:360px;max-width:40vw" />
+      <button id="searchBtn" class="btn">Search</button>
+    </div>
+
     <div class="nav-right">
       <div id="userTag" class="small nav-user">not signed</div>
       <button id="logoutBtnTop" class="btn nav-logout">Logout</button>
     </div>
   </header>
 
-  <!-- Slide menu -->
   <nav id="sideMenu" class="side-menu" aria-hidden="true">
     <div class="side-header">
       <img src="assets/cosmos.jpg" alt="Cosmos" class="side-logo"/>
@@ -31,10 +37,12 @@
     <ul class="side-list">
       <li><a href="dashboard.html" onclick="closeMenu()">Home</a></li>
       <li><a href="#" id="allFilesLink" onclick="showAllFiles(); closeMenu()">All Files</a></li>
-      <li><a href="#" onclick="alert('Feature: Search will be added')">Search</a></li>
-      <li><a href="#" onclick="alert('Feature: Favorites will be added')">Favorites</a></li>
-      <li><a href="#" onclick="alert('Feature: Help coming soon')">Help</a></li>
+      <li><a href="#" id="favoritesLink" onclick="showFavorites(); closeMenu()">Favorites</a></li>
+      <li><a href="#" onclick="openSearchOverlay(); closeMenu()">Search</a></li>
+      <li><a href="#" onclick="closeMenu(); alert('Search & Favorites available. More features coming')">Features</a></li>
+      <li><a href="#" onclick="closeMenu();">Help</a></li>
       <li class="side-divider"></li>
+      <li><a href="#" id="helpContact" onclick="alert('Contact: hydramusic@gmail.com\nInstagram: @saaid_sarosh77')">Help & Contact</a></li>
       <li><a href="#" id="logoutLink" onclick="LW.logoutFromMenu()">Logout</a></li>
     </ul>
   </nav>
@@ -64,7 +72,24 @@
     </main>
   </div>
 
+  <!-- Search results overlay -->
+  <div id="searchOverlay" class="search-overlay" style="display:none">
+    <div class="search-box">
+      <div style="display:flex;align-items:center;gap:8px">
+        <input id="searchOverlayInput" class="input" placeholder="Search..." />
+        <button id="searchOverlayBtn" class="btn">Search</button>
+        <button onclick="closeSearchOverlay()" class="btn">Close</button>
+      </div>
+      <div id="searchResults" style="margin-top:12px"></div>
+    </div>
+  </div>
+
   <script src="script.js"></script>
-  <script>LW.renderDashboard();</script>
+  <script>
+    document.title = 'cosmos-dashboard';
+    const f = document.getElementById('favicon'); if(f) f.href = 'assets/cosmos.jpg';
+    LW.attachDashboardUI && LW.attachDashboardUI();
+    LW.renderDashboard();
+  </script>
 </body>
 </html>

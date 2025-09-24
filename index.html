@@ -2,27 +2,29 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Login — Locked Files</title>
+  <title>Cosmos — Login</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="stylesheet" href="style.css">
-  <!-- discourage caching -->
   <meta http-equiv="cache-control" content="no-store">
   <meta http-equiv="pragma" content="no-cache">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
 </head>
-<body style="display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;">
-  <div class="container box" style="width:420px;max-width:95%;">
+<body class="centered-vertical">
+  <div class="container box login-box" style="width:420px;max-width:95%;">
     <div class="header">
-      <div class="title">Locked Files — Login</div>
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo" style="height:42px;border-radius:8px;margin-right:10px"/>
+      <div class="title">Cosmos — Login</div>
     </div>
-    <form onsubmit="LW.attemptLogin(event)" style="margin-top:14px">
-      <input id="email" class="input" type="text" placeholder="Email" required />
-      <input id="password" class="input" type="password" placeholder="Password" required style="margin-top:8px"/>
-      <div style="display:flex;gap:8px;margin-top:10px">
+
+    <form onsubmit="LW.attemptLogin(event)" style="margin-top:16px">
+      <input id="email" class="input" type="text" placeholder="Email" required autocomplete="username" />
+      <input id="password" class="input" type="password" placeholder="Password" required autocomplete="current-password" style="margin-top:10px"/>
+      <div style="display:flex;gap:10px;margin-top:14px">
         <button class="btn primary" type="submit">Sign in</button>
       </div>
-      <div style="margin-top:12px" class="small">If you forgot credentials contact admin.</div>
+      <div style="margin-top:12px" class="small">Contact admin if you need credentials.</div>
     </form>
   </div>
+
   <script src="script.js"></script>
 </body>
 </html>

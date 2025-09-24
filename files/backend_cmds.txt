@@ -1,15 +1,22 @@
-toutatis -s "65860131821%3Ak1e3BHlkSTnTHV%3A25%3AAYjbaOvI57PlBFt5P7FxmlbQP1zVMyCAjKbHi2c8Sg" -u "apsis_confessions56"
-
-python .\insta.py -s "65860131821%3Ak1e3BHlkSTnTHV%3A25%3AAYjbaOvI57PlBFt5P7FxmlbQP1zVMyCAjKbHi2c8Sgthids" -u saaid_sarosh77
-
-cd $env:USERPROFILE\Downloads
-
-python -m venv venv
-
-.\venv\Scripts\Activate.ps1
-
-pip install flask requests
-
-python .\insta_web_tracker.py
-
+PERFORMANCE
 Get-CimInstance Win32_WinSAT
+
+DISK REPAIR
+Run this in CMD or PowerShell (replace E: with your USB letter):
+
+chkdsk E: /f /r /x /v
+
+
+/f → fix errors
+
+/r → find bad sectors and recover data
+
+/x → force dismount
+
+/v → verbose (shows detailed info about files and directories)
+
+🔹 2. Scan Without Fixing (Details Only)
+chkdsk E:
+
+🔹 3. Health Report
+wmic diskdrive get status,model,size

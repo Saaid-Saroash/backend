@@ -89,3 +89,14 @@ a{color:var(--accent);text-decoration:none}
 
 /* when menu open (small devices), lock body scroll */
 body.menu-open{overflow:hidden}
+/* existing styles … */
+
+.nav-logo, .side-logo {
+  height:44px;
+  width:44px;
+  object-fit:cover;
+  border-radius:50%; /* circle */
+  border:1px solid rgba(255,255,255,0.03)
+}
+.circle { border-radius:50%; }
+

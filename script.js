@@ -1,4 +1,5 @@
-/* Accounts + folder mapping (read-only viewer build) */
+/* Cosmos: client-side read-only app (static) */
+/* Folders + accounts */
 const ALL_FOLDERS = ["backend cmds","instagram","toutatis","dead zone","codes","blueprints","prototypes"];
 
 const ACCOUNTS = {
@@ -7,89 +8,101 @@ const ACCOUNTS = {
   "hackersuniverse@unkown.com": { pwd: "26112009", folders: ALL_FOLDERS.slice() }
 };
 
-/* Helpers */
-function setSession(email){ sessionStorage.setItem("lw_user", email); }
-function clearSession(){ sessionStorage.removeItem("lw_user"); }
-function getSession(){ return sessionStorage.getItem("lw_user"); }
+/* Session helpers */
+function setSession(email){ sessionStorage.setItem("cosmos_user", email); }
+function clearSession(){ sessionStorage.removeItem("cosmos_user"); }
+function getSession(){ return sessionStorage.getItem("cosmos_user"); }
+
+/* NAV / MENU helpers */
+function openMenu(menuId){ const m = document.getElementById(menuId); if(m){ m.style.transform = "translateX(0)"; m.setAttribute('aria-hidden','false'); document.body.classList.add('menu-open'); }}
+function closeMenu(){ const sm = document.querySelectorAll('.side-menu'); sm.forEach(m=>{ m.style.transform = "translateX(-110%)"; m.setAttribute('aria-hidden','true'); }); document.body.classList.remove('menu-open'); }
+function toggleMenu(menuId){ const m = document.getElementById(menuId); if(!m) return; const hidden = m.getAttribute('aria-hidden') === 'true'; if(hidden) openMenu(menuId); else closeMenu(); }
 
 /* LOGIN */
 function attemptLogin(ev){
   ev && ev.preventDefault();
-  const email = document.getElementById("email").value.trim();
-  const pass = document.getElementById("password").value.trim();
+  const email = (document.getElementById('email')||{}).value?.trim() || '';
+  const pass = (document.getElementById('password')||{}).value?.trim() || '';
   const acc = ACCOUNTS[email];
   if(acc && acc.pwd === pass){
     setSession(email);
-    // replace history so login isn't in history stack
-    location.replace("dashboard.html");
+    // replace so login won't be reachable by back
+    location.replace('dashboard.html');
   } else {
-    alert("Invalid credentials");
+    alert('Invalid credentials');
   }
 }
 
+/* Logout helper used by menu and top buttons */
+function logoutNow(){
+  clearSession();
+  // replace to remove protected pages from history
+  location.replace('index.html');
+}
+function logoutFromMenu(){ if(confirm('Logout?')) logoutNow(); }
+
 /* DASHBOARD */
 function renderDashboard(){
-  // protect page immediately
   const user = getSession();
-  if(!user){ location.replace("index.html"); return; }
+  if(!user){ location.replace('index.html'); return; }
+  // ensure protected history behavior
+  history.replaceState(null, '', location.href);
 
-  // replace current history entry (so back doesn't return to login)
-  history.replaceState(null, "", location.href);
-
-  document.getElementById("userTag").textContent = user;
+  const tag = document.getElementById('userTag');
+  if(tag) tag.textContent = user;
   const allowed = ACCOUNTS[user].folders || [];
-  const container = document.getElementById("folders");
-  container.innerHTML = "";
-  for(const f of allowed){
-    const el = document.createElement("div");
-    el.className = "folder";
+  const container = document.getElementById('folders');
+  if(!container) return;
+  container.innerHTML = '';
+  allowed.forEach(f => {
+    const el = document.createElement('div');
+    el.className = 'folder';
     el.innerHTML = `<span>${f}</span><span class="small">view</span>`;
-    el.addEventListener("click", ()=>{
-      // use replace to avoid stacking history entry that could be returned to after logout
-      location.replace(`viewer.html?folder=${encodeURIComponent(f)}`);
-    });
+    el.addEventListener('click', ()=> location.replace(`viewer.html?folder=${encodeURIComponent(f)}`));
     container.appendChild(el);
-  }
-
-  const logoutBtn = document.getElementById("logoutBtn");
-  if(logoutBtn){
-    logoutBtn.addEventListener("click", ()=>{
-      if(confirm("Logout?")){
-        clearSession();
-        // replace to login and remove this page from history
-        location.replace("index.html");
-      }
-    });
-  }
-
-  // prevent back navigation to protected content after logout:
-  window.addEventListener('popstate', () => {
-    if(!getSession()) location.replace("index.html");
-    else history.replaceState(null, "", location.href);
   });
+
+  // top nav events
+  const menuToggle = document.getElementById('menuToggle');
+  if(menuToggle) menuToggle.addEventListener('click', ()=> toggleMenu('sideMenu'));
+  const logoutBtnTop = document.getElementById('logoutBtnTop');
+  if(logoutBtnTop) logoutBtnTop.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
+
+  // extra quick action
+  const openAllBtn = document.getElementById('openAllBtn');
+  if(openAllBtn && allowed[0]) openAllBtn.addEventListener('click', ()=> location.replace(`viewer.html?folder=${encodeURIComponent(allowed[0])}`));
+
+  // back-protection
+  window.addEventListener('popstate', ()=> { if(!getSession()) location.replace('index.html'); else history.replaceState(null, '', location.href); });
 }
 
 /* VIEWER */
 function initViewer(){
   const user = getSession();
-  if(!user){ location.replace("index.html"); return; }
+  if(!user){ location.replace('index.html'); return; }
+  history.replaceState(null, '', location.href);
 
-  // ensure any attempt to go back to this page after logout will redirect
-  history.replaceState(null, "", location.href);
+  // nav/menu wiring
+  const menuToggle = document.getElementById('menuToggleV');
+  if(menuToggle) menuToggle.addEventListener('click', ()=> toggleMenu('sideMenuV'));
+  const logoutBtnTopV = document.getElementById('logoutBtnTopV');
+  if(logoutBtnTopV) logoutBtnTopV.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
+  const backBtn = document.getElementById('backBtn');
+  if(backBtn) backBtn.addEventListener('click', ()=> location.replace('dashboard.html'));
 
+  // load file
   const params = new URLSearchParams(window.location.search);
-  const folder = params.get("folder");
-  if(!folder){ location.replace("dashboard.html"); return; }
-
+  const folder = params.get('folder');
+  if(!folder){ location.replace('dashboard.html'); return; }
   const allowed = ACCOUNTS[user].folders || [];
-  if(!allowed.includes(folder)){ alert("Access denied"); location.replace("dashboard.html"); return; }
+  if(!allowed.includes(folder)){ alert('Access denied'); location.replace('dashboard.html'); return; }
 
-  document.getElementById("userTag").textContent = user;
-  document.getElementById("folderName").textContent = folder;
-  document.getElementById("backBtn").addEventListener("click", ()=> location.replace("dashboard.html"));
-  document.getElementById("logoutBtn").addEventListener("click", ()=> { clearSession(); location.replace("index.html"); });
+  // show metadata
+  const tag = document.getElementById('userTagV') || document.getElementById('userTag');
+  if(tag) tag.textContent = user;
+  const title = document.getElementById('folderName');
+  if(title) title.textContent = folder;
 
-  // map folder name -> file path
   const fileMap = {
     "backend cmds": "files/backend_cmds.txt",
     "instagram": "files/instagram.txt",
@@ -100,19 +113,55 @@ function initViewer(){
     "prototypes": "files/prototypes.txt"
   };
 
-  fetch(fileMap[folder], {cache: "no-store"})
-    .then(r => {
-      if(!r.ok) throw new Error("Network response not ok");
-      return r.text();
+  const path = fileMap[folder];
+  fetch(path, {cache: "no-store"})
+    .then(resp => {
+      if(!resp.ok) throw new Error('Fetch error');
+      return resp.text();
     })
-    .then(text => { document.getElementById("fileContent").textContent = text; })
-    .catch(() => { document.getElementById("fileContent").textContent = "Error loading file"; });
+    .then(txt => {
+      const pre = document.getElementById('fileContent');
+      if(pre) pre.textContent = txt;
+    })
+    .catch(()=> {
+      const pre = document.getElementById('fileContent');
+      if(pre) pre.textContent = 'Error loading file';
+    });
 
-  window.addEventListener('popstate', () => {
-    if(!getSession()) location.replace("index.html");
-    else history.replaceState(null, "", location.href);
-  });
+  // download button
+  const downloadBtn = document.getElementById('downloadBtnViewer');
+  if(downloadBtn){
+    downloadBtn.addEventListener('click', ()=>{
+      fetch(path).then(r=>r.blob()).then(blob=>{
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = folder.replace(/\s+/g,'_') + '.txt';
+        a.click();
+        URL.revokeObjectURL(a.href);
+      }).catch(()=> alert('Download failed'));
+    });
+  }
+
+  // ensure back protection after logout
+  window.addEventListener('popstate', ()=> { if(!getSession()) location.replace('index.html'); else history.replaceState(null,'',location.href); });
 }
 
-/* expose API */
-window.LW = { attemptLogin, renderDashboard, initViewer, clearSession, getSession };
+/* small helpers for linking from menu */
+function showAllFiles(){
+  const u = getSession();
+  if(!u) return;
+  const allowed = ACCOUNTS[u].folders || [];
+  if(!allowed.length) return;
+  // open first allowed file
+  location.replace(`viewer.html?folder=${encodeURIComponent(allowed[0])}`);
+}
+
+/* API exported */
+window.LW = {
+  attemptLogin,
+  renderDashboard,
+  initViewer,
+  logoutFromMenu,
+  logoutNow,
+  getSession
+};

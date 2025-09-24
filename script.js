@@ -1,10 +1,3 @@
-/* script.js — obfuscated credentials version
-   Obfuscation method: base64 then reverse string.
-   This hides plain credentials from casual view in Sources.
-   NOT a secure replacement for a server-side auth.
-*/
-
-/* --- utility obfuscation helpers --- */
 function _rev(s){return s.split('').reverse().join('');}
 function _b64dec(s){ return decodeURIComponent(escape(window.atob(s))); } // atob -> raw decode
 function _decodeObf(s){ try{ return _b64dec(_rev(s)); } catch(e){ return ''; } }

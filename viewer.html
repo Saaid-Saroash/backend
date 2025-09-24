@@ -2,23 +2,19 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>cosmos-viewer</title>
+  <title>Cosmos - Viewer</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <link id="favicon" rel="icon" href="assets/cosmos.jpg">
+  <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
   <link rel="stylesheet" href="style.css">
   <meta http-equiv="cache-control" content="no-store">
   <meta http-equiv="pragma" content="no-cache">
 </head>
 <body>
   <header class="topnav">
-    <button id="menuToggleV" class="hamburger" aria-label="Open menu">☰</button>
+    <button id="menuToggleV" class="hamburger">☰</button>
     <div class="nav-left">
-      <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo"/>
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo circle"/>
       <div class="site-title">Cosmos</div>
-    </div>
-    <div class="nav-mid">
-      <input id="searchInputV" class="input" placeholder="Search files or contents..." style="width:300px;max-width:38vw" />
-      <button id="searchBtnV" class="btn">Search</button>
     </div>
     <div class="nav-right">
       <div id="userTagV" class="small nav-user">user</div>
@@ -28,16 +24,16 @@
 
   <nav id="sideMenuV" class="side-menu" aria-hidden="true">
     <div class="side-header">
-      <img src="assets/cosmos.jpg" alt="Cosmos" class="side-logo"/>
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="side-logo circle"/>
       <div class="side-title">Cosmos</div>
     </div>
     <ul class="side-list">
       <li><a href="dashboard.html" onclick="closeMenu()">Home</a></li>
-      <li><a href="#" id="allFilesLinkV" onclick="showAllFiles(); closeMenu()">All Files</a></li>
-      <li><a href="#" id="favoritesLinkV" onclick="showFavorites(); closeMenu()">Favorites</a></li>
+      <li><a href="#" onclick="LW.searchSite(); closeMenu()">Search</a></li>
+      <li><a href="#" onclick="LW.showFavorites(); closeMenu()">Favorites</a></li>
+      <li><a href="#" onclick="LW.showHelp(); closeMenu()">Help</a></li>
       <li class="side-divider"></li>
-      <li><a href="#" id="helpContactV" onclick="alert('Contact: hydramusic@gmail.com\nInstagram: @saaid_sarosh77')">Help & Contact</a></li>
-      <li><a href="#" id="logoutLinkV" onclick="LW.logoutFromMenu()">Logout</a></li>
+      <li><a href="#" onclick="LW.logoutFromMenu()">Logout</a></li>
     </ul>
   </nav>
 
@@ -48,16 +44,16 @@
       </div>
       <div style="margin-top:12px" class="box">
         <pre id="fileContent" class="editor">Loading...</pre>
-        <div style="display:flex;gap:8px;margin-top:12px">
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button id="backBtn" class="btn">Back</button>
           <button id="downloadBtnViewer" class="btn">Download</button>
-          <button id="favBtn" class="btn">☆ Add to favorites</button>
+          <button id="favBtn" class="btn">Add to Favorites</button>
         </div>
       </div>
     </main>
   </div>
 
   <script src="script.js"></script>
-  <script> document.title='cosmos-viewer'; const f=document.getElementById('favicon'); if(f) f.href='assets/cosmos.jpg'; LW.initViewer(); </script>
+  <script>LW.initViewer();</script>
 </body>
 </html>

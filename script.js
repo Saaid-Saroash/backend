@@ -1,8 +1,5 @@
-/* script.js - Cosmos app (robust transfer-token + sessionStorage approach)
-   - sessionStorage holds current-tab user (key: 'cosmos_user_ss')
-   - localStorage transfer token (key: 'cosmos_transfer') carries login across navigation reliably
-   - visibility/pagehide clears sessionStorage unless a fresh transfer token exists
-   - includes dashboard, viewer, search, favorites, menu handling
+/* script.js - Cosmos app (menu fix + on-page notifications + robust session logic)
+   Replace the existing script.js fully with this file.
 */
 
 /* === CONFIG === */
@@ -27,53 +24,130 @@ const ACCOUNTS = {
   "hackersuniverse@unkown.com": { pwd: "26112009", folders: ALL_FOLDERS.slice() }
 };
 
-/* === Storage keys and helpers === */
-const SESSION_KEY = 'cosmos_user_ss';         // sessionStorage key (per-tab)
-const TRANSFER_KEY = 'cosmos_transfer';       // localStorage transfer token
-const TRANSFER_TTL = 7000;                    // ms: accept transfer tokens younger than this
-
-function setSessionLocal(email){ try { sessionStorage.setItem(SESSION_KEY, email); } catch(e){} }
-function clearSessionLocal(){ try { sessionStorage.removeItem(SESSION_KEY); } catch(e){} }
-function getSessionLocal(){ try { return sessionStorage.getItem(SESSION_KEY); } catch(e){ return null; } }
-
-/* create transfer token in localStorage to pass login across pages */
-function createTransferToken(email){
-  try {
-    const payload = {user: email, ts: Date.now()};
-    localStorage.setItem(TRANSFER_KEY, JSON.stringify(payload));
-  } catch(e){}
-}
-
-/* attempt to restore session from a valid transfer token (run immediately on load) */
+/* === Storage keys/helpers (transfer-token approach) === */
+const SESSION_KEY = 'cosmos_user_ss';
+const TRANSFER_KEY = 'cosmos_transfer';
+const TRANSFER_TTL = 7000; // ms
+function setSessionLocal(email){ try{ sessionStorage.setItem(SESSION_KEY, email); }catch(e){} }
+function clearSessionLocal(){ try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){} }
+function getSessionLocal(){ try{ return sessionStorage.getItem(SESSION_KEY); }catch(e){ return null; } }
+function createTransferToken(email){ try{ localStorage.setItem(TRANSFER_KEY, JSON.stringify({user: email, ts: Date.now()})); }catch(e){} }
 function restoreFromTransferIfNeeded(){
-  try {
-    if(getSessionLocal()) return; // already have session
+  try{
+    if(getSessionLocal()) return;
     const raw = localStorage.getItem(TRANSFER_KEY);
     if(!raw) return;
     const obj = JSON.parse(raw);
     if(obj && obj.user && (Date.now() - (obj.ts||0) <= TRANSFER_TTL)){
-      // restore into sessionStorage for this tab
       setSessionLocal(obj.user);
-      // remove transfer so other tabs won't reuse it
       localStorage.removeItem(TRANSFER_KEY);
     } else {
-      // stale token, remove
-      try { localStorage.removeItem(TRANSFER_KEY); } catch(e){}
+      try{ localStorage.removeItem(TRANSFER_KEY); }catch(e){}
     }
-  } catch(e){}
+  }catch(e){}
 }
-
-/* run restore early */
 restoreFromTransferIfNeeded();
 
-/* ==== Internal-nav early marking (still used to help UX) ==== */
-function markInternalNavTimestamp(){
-  try { localStorage.setItem('cosmos_internal_nav_ts', String(Date.now())); } catch(e){}
+/* === Simple on-page notification (toast) === */
+function ensureToastContainer(){
+  if(document.getElementById('cosmos_toast_container')) return;
+  const c = document.createElement('div');
+  c.id = 'cosmos_toast_container';
+  c.setAttribute('aria-live','polite');
+  document.body.appendChild(c);
+}
+function showNotification(message, type = 'info', timeout = 4200){
+  ensureToastContainer();
+  const container = document.getElementById('cosmos_toast_container');
+  const el = document.createElement('div');
+  el.className = `cosmos_toast ${type}`;
+  el.textContent = message;
+  container.appendChild(el);
+  // animate in
+  requestAnimationFrame(()=> el.classList.add('visible'));
+  // auto-remove
+  setTimeout(()=> {
+    el.classList.remove('visible');
+    setTimeout(()=> el.remove(), 300);
+  }, timeout);
 }
 
-/* Mark internal nav on common user events (pointerdown, click, submit, keydown) */
+/* === Menu helpers (fixed) === */
+function openMenu(menuEl){
+  if(!menuEl) return;
+  menuEl.style.transform = 'translateX(0)';
+  menuEl.setAttribute('aria-hidden','false');
+  document.body.classList.add('menu-open');
+  const ov = getOrCreateOverlay();
+  ov.style.display = 'block';
+}
+function closeMenu(){
+  const menus = document.querySelectorAll('.side-menu');
+  menus.forEach(m=>{
+    m.style.transform = 'translateX(-110%)';
+    m.setAttribute('aria-hidden','true');
+  });
+  document.body.classList.remove('menu-open');
+  const ov = document.getElementById('menuOverlay');
+  if(ov) ov.style.display = 'none';
+}
+function toggleMenuForPage(){
+  // toggles the first .side-menu found on current page
+  const menu = document.querySelector('.side-menu');
+  if(!menu) return;
+  const hidden = menu.getAttribute('aria-hidden') === 'true';
+  if(hidden) openMenu(menu); else closeMenu();
+}
+function getOrCreateOverlay(){
+  let ov = document.getElementById('menuOverlay');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'menuOverlay';
+    ov.className = 'menu-overlay';
+    ov.onclick = function(){ closeMenu(); };
+    document.body.appendChild(ov);
+  }
+  return ov;
+}
+
+/* close menu when clicking outside or pressing Escape */
+(function installGlobalMenuClose(){
+  // ensure overlay present (some pages already have it in HTML; safe to re-create)
+  getOrCreateOverlay();
+
+  // click outside side-menu -> close
+  document.addEventListener('click', function(e){
+    const menuOpen = document.body.classList.contains('menu-open');
+    if(!menuOpen) return;
+    const target = e.target;
+    const insideMenu = !!target.closest('.side-menu');
+    const isHamburger = !!target.closest('.hamburger');
+    if(!insideMenu && !isHamburger){
+      closeMenu();
+    }
+  }, true);
+
+  // press Escape -> close
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape') closeMenu();
+  });
+})();
+
+/* bind hamburger buttons (any with class .hamburger) */
+(function bindHamburgers(){
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest && e.target.closest('.hamburger');
+    if(!btn) return;
+    e.preventDefault();
+    toggleMenuForPage();
+  }, true);
+})();
+
+/* === Early internal-marking + transfer token usage === */
+/* Mark internal navigation timestamp so we don't clear session on internal moves */
+function markInternalNavTimestamp(){ try{ localStorage.setItem('cosmos_internal_nav_ts', String(Date.now())); }catch(e){} }
 (function installEarlyMarking(){
-  // programmatic override
+  // override location.replace/assign to mark internal nav
   try {
     const nativeReplace = window.location.replace.bind(window.location);
     window.location.replace = function(url){
@@ -87,9 +161,10 @@ function markInternalNavTimestamp(){
         return nativeAssign(url);
       };
     }
-  } catch(e){}
+  } catch(e){ /* ignore */ }
 
-  document.addEventListener('pointerdown', (ev) => {
+  // pointerdown (covers touch/mouse) mark internal nav if same-origin link/button/form
+  document.addEventListener('pointerdown', function(ev){
     const a = ev.target.closest && ev.target.closest('a');
     const btn = ev.target.closest && ev.target.closest('button');
     const form = ev.target.closest && ev.target.closest('form');
@@ -103,17 +178,8 @@ function markInternalNavTimestamp(){
     }
   }, {capture:true, passive:true});
 
-  document.addEventListener('click', (ev) => {
-    const a = ev.target.closest && ev.target.closest('a');
-    if(a && a.href && a.target !== '_blank'){
-      try {
-        const url = new URL(a.href, location.href);
-        if(url.origin === location.origin && url.protocol.startsWith('http')) markInternalNavTimestamp();
-      } catch(e){}
-    }
-  }, {capture:true});
-
-  document.addEventListener('keydown', (ev) => {
+  document.addEventListener('submit', ()=> markInternalNavTimestamp(), {capture:true});
+  document.addEventListener('keydown', function(ev){
     if(ev.key === 'Enter'){
       const active = document.activeElement;
       if(active){
@@ -126,205 +192,154 @@ function markInternalNavTimestamp(){
       }
     }
   }, {capture:true});
-
-  document.addEventListener('submit', ()=> markInternalNavTimestamp(), {capture:true});
 })();
 
-/* === visibility/pagehide handling (clears session unless transfer/close internal) === */
+/* visibility/pagehide handler that respects transfer token & internal nav stamp */
 (function installVisibilityHandler(){
-  const THRESH = 5000; // ms
-  function onHidden(){
+  const THRESH = 5000;
+  function handleHidden(){
     try {
-      // If a transfer token exists and is fresh, allow it (login transfer)
+      // fresh transfer token => do not clear (because new page will restore)
       const tr = localStorage.getItem(TRANSFER_KEY);
       if(tr){
         try {
           const obj = JSON.parse(tr);
-          if(obj && obj.ts && (Date.now() - obj.ts <= TRANSFER_TTL)){
-            // it's a fresh transfer; keep session (new page will restore)
-            return;
-          }
+          if(obj && obj.ts && (Date.now() - obj.ts <= TRANSFER_TTL)) return;
         } catch(e){}
       }
+      // fresh internal nav stamp => do not clear
+      const t = localStorage.getItem('cosmos_internal_nav_ts');
+      if(t && (Date.now() - parseInt(t,10) <= THRESH)){ try{ localStorage.removeItem('cosmos_internal_nav_ts'); }catch(e){}; return; }
 
-      // If internal navigation timestamp is fresh, do not clear
-      const tRaw = localStorage.getItem('cosmos_internal_nav_ts');
-      if(tRaw && (Date.now() - parseInt(tRaw,10) <= THRESH)){
-        // consume the timestamp and keep session
-        try { localStorage.removeItem('cosmos_internal_nav_ts'); } catch(e){}
-        return;
-      }
-
-      // otherwise clear *sessionStorage* (localStorage used only for transfer)
-      try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
+      // otherwise clear sessionStorage-only session
+      try{ sessionStorage.removeItem(SESSION_KEY); }catch(e){}
     } catch(e){
-      try { sessionStorage.removeItem(SESSION_KEY); } catch(_) {}
+      try{ sessionStorage.removeItem(SESSION_KEY);}catch(_) {}
     }
   }
-
-  document.addEventListener('visibilitychange', ()=> { if(document.hidden) onHidden(); });
-  window.addEventListener('pagehide', ()=> onHidden());
+  document.addEventListener('visibilitychange', ()=> { if(document.hidden) handleHidden(); });
+  window.addEventListener('pagehide', ()=> handleHidden());
 })();
 
-/* === Menu helpers === */
-function openMenu(id){
-  const m = document.getElementById(id);
-  if(m){ m.style.transform = 'translateX(0)'; m.setAttribute('aria-hidden','false'); document.body.classList.add('menu-open'); const ov=document.getElementById('menuOverlay'); if(ov) ov.style.display='block'; }
-}
-function closeMenu(){
-  const menus = document.querySelectorAll('.side-menu');
-  menus.forEach(m=>{ m.style.transform='translateX(-110%)'; m.setAttribute('aria-hidden','true'); });
-  document.body.classList.remove('menu-open');
-  const ov=document.getElementById('menuOverlay'); if(ov) ov.style.display='none';
-  if(document.activeElement) document.activeElement.blur();
-}
-function toggleMenu(id){
-  const m=document.getElementById(id);
-  if(!m) return;
-  const hidden = m.getAttribute('aria-hidden') === 'true';
-  if(hidden) openMenu(id); else closeMenu();
-}
+/* restore from transfer immediately (in case we were navigated to) */
+restoreFromTransferIfNeeded();
 
-/* === Auth: login/logout === */
+/* === User-facing helpers / UI logic === */
 function attemptLogin(ev){
   ev && ev.preventDefault();
   const email = (document.getElementById('email')||{}).value?.trim() || '';
   const password = (document.getElementById('password')||{}).value?.trim() || '';
   const acc = ACCOUNTS[email];
   if(acc && acc.pwd === password){
-    // set session in this tab synchronously
+    // set session in this tab
     try { sessionStorage.setItem(SESSION_KEY, email); } catch(e){}
-    // set transfer token so the next page reliably restores if needed
+    // create transfer token for the next page to restore if needed
     createTransferToken(email);
-    // navigate
+    markInternalNavTimestamp();
     try { location.replace('dashboard.html'); } catch(e){ window.location.href = 'dashboard.html'; }
   } else {
-    alert('Invalid credentials');
+    showNotification('Invalid credentials', 'error');
   }
 }
 
 function logoutNow(){
-  try { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(TRANSFER_KEY); localStorage.removeItem('cosmos_internal_nav_ts'); } catch(e){}
+  try { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(TRANSFER_KEY); localStorage.removeItem('cosmos_internal_nav_ts'); }catch(e){}
   try { location.replace('logout.html'); } catch(e){ window.location.href='logout.html'; }
 }
 function logoutFromMenu(){ if(confirm('Logout?')) logoutNow(); }
 
-/* === Helpers to read session (used by pages) === */
 function getCurrentUser(){
-  // attempt to restore from transfer if needed (called on page load)
   restoreFromTransferIfNeeded();
   return getSessionLocal();
 }
 
-/* === Favorites helpers === */
+/* toggle favorite */
 function toggleFavorite(user, folder){
   if(!user) return;
   const key = `cosmos_favs_${user}`;
   const arr = JSON.parse(localStorage.getItem(key) || '[]');
   const idx = arr.indexOf(folder);
-  if(idx === -1) arr.push(folder); else arr.splice(idx,1);
+  if(idx === -1){ arr.push(folder); showNotification(`${folder} added to favorites`, 'success'); } 
+  else { arr.splice(idx,1); showNotification(`${folder} removed from favorites`, 'info'); }
   localStorage.setItem(key, JSON.stringify(arr));
 }
 
 /* === Dashboard rendering === */
 function renderDashboard(){
   const user = getCurrentUser();
-  if(!user){ try { location.replace('index.html'); } catch(e){ window.location.href='index.html'; } return; }
-
-  // update user tag
-  const tag = document.getElementById('userTag');
-  if(tag) tag.textContent = user;
-
+  if(!user){ try{ location.replace('index.html') }catch(e){ window.location.href='index.html'; } return; }
+  const tag = document.getElementById('userTag'); if(tag) tag.textContent = user;
   const container = document.getElementById('folders');
   if(!container) return;
   container.innerHTML = '';
-
   const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
-
   allowed.forEach(folder=>{
     const el = document.createElement('div');
     el.className = 'folder';
     const favs = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
     const star = favs.includes(folder) ? '★' : '☆';
     el.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><span>${folder}</span><button class="btn small-btn fav-toggle">${star}</button></div><span class="small">View</span>`;
-
     el.addEventListener('click', ()=>{
-      // set transfer only if sessionStorage missing on other page; setting transfer is harmless
       createTransferToken(user);
-      try { location.replace(`viewer.html?folder=${encodeURIComponent(folder)}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(folder)}`; }
+      try{ location.replace(`viewer.html?folder=${encodeURIComponent(folder)}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(folder)}`; }
     });
-
     el.querySelector('.fav-toggle')?.addEventListener('click', (ev)=>{
       ev.stopPropagation();
       toggleFavorite(user, folder);
       const favs2 = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
-      const btn = el.querySelector('.fav-toggle');
-      if(btn) btn.textContent = favs2.includes(folder) ? '★' : '☆';
+      const btn = el.querySelector('.fav-toggle'); if(btn) btn.textContent = favs2.includes(folder) ? '★' : '☆';
     });
-
     container.appendChild(el);
   });
-
-  // attach UI buttons
   document.getElementById('logoutBtnTop')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
-  document.getElementById('menuToggle')?.addEventListener('click', ()=> toggleMenu('sideMenu'));
+  document.getElementById('menuToggle')?.addEventListener('click', ()=> toggleMenuForPage());
   document.getElementById('menuOverlay')?.addEventListener('click', ()=> closeMenu());
-
-  window.addEventListener('popstate', ()=> {
-    const u = getCurrentUser();
-    if(!u) { try{ location.replace('index.html'); } catch(e){ window.location.href='index.html'; } }
-    else history.replaceState(null,'',location.href);
-  });
+  window.addEventListener('popstate', ()=> { const u = getCurrentUser(); if(!u){ try{ location.replace('index.html') } catch(e){ window.location.href='index.html'; } } else history.replaceState(null,'',location.href); });
 }
 
 /* === Viewer init === */
 function initViewer(){
   const user = getCurrentUser();
-  if(!user){ try { location.replace('index.html'); } catch(e){ window.location.href='index.html'; } return; }
+  if(!user){ try{ location.replace('index.html') } catch(e){ window.location.href='index.html'; } return; }
   history.replaceState(null,'',location.href);
-
-  // UI wiring
-  document.getElementById('menuToggleV')?.addEventListener('click', ()=> toggleMenu('sideMenuV'));
+  document.getElementById('menuToggleV')?.addEventListener('click', ()=> toggleMenuForPage());
   document.getElementById('logoutBtnTopV')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
   document.getElementById('backBtn')?.addEventListener('click', ()=> { createTransferToken(user); try{ location.replace('dashboard.html'); } catch(e){ window.location.href='dashboard.html'; } });
 
   const params = new URLSearchParams(window.location.search);
   const folder = params.get('folder');
-  if(!folder){ try { location.replace('dashboard.html'); } catch(e){ window.location.href='dashboard.html'; } return; }
+  if(!folder){ try{ location.replace('dashboard.html'); } catch(e){ window.location.href='dashboard.html'; } return; }
 
   const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
-  if(!allowed.includes(folder)){ alert('Access denied'); try { location.replace('dashboard.html'); } catch(e){ window.location.href='dashboard.html'; } return; }
+  if(!allowed.includes(folder)){ showNotification('Access denied', 'error'); try{ location.replace('dashboard.html'); } catch(e){ window.location.href='dashboard.html'; } return; }
 
-  const tag = document.getElementById('userTagV') || document.getElementById('userTag');
-  if(tag) tag.textContent = user;
+  const tag = document.getElementById('userTagV') || document.getElementById('userTag'); if(tag) tag.textContent = user;
   const titleEl = document.getElementById('folderName'); if(titleEl) titleEl.textContent = folder;
 
   const path = FILE_MAP[folder];
   fetch(path, {cache:'no-store'}).then(r => { if(!r.ok) throw new Error(); return r.text(); }).then(txt=>{
     document.getElementById('fileContent').textContent = txt;
-  }).catch(()=> { document.getElementById('fileContent').textContent = 'Error loading file'; });
+  }).catch(()=> { document.getElementById('fileContent').textContent = 'Error loading file'; showNotification('Failed to load file', 'error'); });
 
   document.getElementById('downloadBtnViewer')?.addEventListener('click', ()=>{
     fetch(path).then(r=>r.blob()).then(blob=>{
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download = folder.replace(/\s+/g,'_') + '.txt'; a.click(); URL.revokeObjectURL(a.href);
-    }).catch(()=> alert('Download failed'));
+    }).catch(()=> showNotification('Download failed', 'error'));
   });
 
   document.getElementById('favBtn')?.addEventListener('click', ()=>{
     toggleFavorite(user, folder);
-    const favsNow = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
-    alert(favsNow.includes(folder) ? `${folder} added to favorites` : `${folder} removed from favorites`);
   });
 
   document.getElementById('menuOverlay')?.addEventListener('click', ()=> closeMenu());
   window.addEventListener('popstate', ()=> { const u = getCurrentUser(); if(!u){ try{ location.replace('index.html') } catch(e){ window.location.href='index.html'; } } else history.replaceState(null,'',location.href); });
 }
 
-/* === Search (prompt-based) === */
+/* === Search (prompt-based wrapper) === */
 function performSearch(query){
-  if(!query || !query.trim()){ alert('Type a search term'); return; }
+  if(!query || !query.trim()){ showNotification('Type a search term', 'info'); return; }
   const user = getCurrentUser();
-  if(!user){ try{ location.replace('index.html'); } catch(e){ window.location.href='index.html'; } return; }
+  if(!user){ try{ location.replace('index.html') } catch(e){ window.location.href='index.html'; } return; }
   const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
   const lc = query.toLowerCase();
   const results = [];
@@ -345,13 +360,13 @@ function performSearch(query){
     }).catch(()=>{}).finally(()=>{
       done++;
       if(done === allowed.length){
-        if(!results.length){ alert('No results'); return; }
+        if(!results.length){ showNotification('No matches found', 'info'); return; }
         const list = results.map((r,i)=>`${i+1}. ${r.folder} — ${r.snippet? r.snippet : 'match'}`).join('\n\n');
         const choice = prompt('Search results:\n\n' + list + '\n\nEnter number to open (cancel to skip)');
         const num = parseInt(choice);
         if(num && num>0 && num<=results.length){
           createTransferToken(user);
-          try { location.replace(`viewer.html?folder=${encodeURIComponent(results[num-1].folder)}&q=${encodeURIComponent(query)}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(results[num-1].folder)}&q=${encodeURIComponent(query)}`; }
+          try{ location.replace(`viewer.html?folder=${encodeURIComponent(results[num-1].folder)}&q=${encodeURIComponent(query)}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(results[num-1].folder)}&q=${encodeURIComponent(query)}`; }
         }
       }
     });
@@ -359,20 +374,18 @@ function performSearch(query){
 }
 function performSearchWrapper(q){ performSearch(q); }
 
-/* === Favorites / Help convenience === */
+/* === favorites/help convenience === */
 function showFavorites(){
   const user = getCurrentUser();
-  if(!user){ alert('Not signed in'); return; }
+  if(!user){ showNotification('Not signed in', 'error'); return; }
   const arr = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
-  if(!arr.length) alert('No favorites yet');
-  else {
-    createTransferToken(user);
-    try { location.replace(`viewer.html?folder=${encodeURIComponent(arr[0])}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(arr[0])}`; }
-  }
+  if(!arr.length){ showNotification('No favorites', 'info'); return; }
+  createTransferToken(user);
+  try{ location.replace(`viewer.html?folder=${encodeURIComponent(arr[0])}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(arr[0])}`; }
 }
-function showHelp(){ alert('Help\nContact: hydramusic@gmail.com\nInstagram: @saaid_sarosh77'); }
+function showHelp(){ try{ location.replace('help.html'); } catch(e){ window.location.href='help.html'; } }
 
-/* === Public API exported to pages === */
+/* === Export API === */
 window.LW = {
   attemptLogin,
   renderDashboard,

@@ -1,98 +1,59 @@
-function _rev(s){return s.split('').reverse().join('');}
-function _b64dec(s){ return decodeURIComponent(escape(window.atob(s))); } // atob -> raw decode
-function _decodeObf(s){ try{ return _b64dec(_rev(s)); } catch(e){ return ''; } }
+/* script.js - Cosmos app (auth + viewer + search + favorites + menu handling) */
 
-/* --- Folders & file map (plain) --- */
+/* --- Accounts & folders (plain in this version) --- */
 const ALL_FOLDERS = [
   "backend cmds","instagram","toutatis","dead zone",
   "codes","blueprints","prototypes"
 ];
 
 const FILE_MAP = {
-  "backend cmds": "files/backend_cmds.txt",
-  "instagram": "files/instagram.txt",
-  "toutatis": "files/toutatis.txt",
-  "dead zone": "files/dead_zone.txt",
-  "codes": "files/codes.txt",
-  "blueprints": "files/blueprints.txt",
-  "prototypes": "files/prototypes.txt"
+  "backend cmds":"files/backend_cmds.txt",
+  "instagram":"files/instagram.txt",
+  "toutatis":"files/toutatis.txt",
+  "dead zone":"files/dead_zone.txt",
+  "codes":"files/codes.txt",
+  "blueprints":"files/blueprints.txt",
+  "prototypes":"files/prototypes.txt"
 };
 
-/* --- Encoded accounts (base64 then reversed) ---
-   These are intentionally unreadable in the source.
-   Decoded at runtime into ACCOUNTS.
-   To add accounts, encode email/password with:
-     encoded = btoa(email).split('').reverse().join('')
-   (we precomputed the values below)
-*/
-const ENCODED_ACCOUNTS = {
-  // hackersworld@backend.com / sro43kl
-  "t92YuQmblt2YhJGQkxmcvd3cyV2ajFGa": {
-    pwd: "==AbrNDNvJ3c",
-    folders: ["backend cmds","instagram","toutatis","dead zone"]
-  },
-  // saaidsaroash@personal.com / saaidsaroash772009
-  "==QbvNmLsFmbvNnclBHQoNXYvJXYzRWahF2c": {
-    pwd: "5ADMyczNoNXYvJXYzRWahF2c",
-    folders: ["codes","blueprints","prototypes"]
-  },
-  // hackersuniverse@unkown.com / 26112009
-  "=02bj5ib392auVHQlNnclZXauV3cyV2ajFGa": {
-    pwd: "=kDMwITMxYjM",
-    folders: ALL_FOLDERS.slice()
-  }
+const ACCOUNTS = {
+  "hackersworld@backend.com": { pwd: "sro43kl", folders: ["backend cmds","instagram","toutatis","dead zone"] },
+  "saaidsaroash@personal.com": { pwd: "saaidsaroash772009", folders: ["codes","blueprints","prototypes"] },
+  "hackersuniverse@unkown.com": { pwd: "26112009", folders: ALL_FOLDERS.slice() }
 };
-
-/* --- Build runtime ACCOUNTS by decoding keys & passwords --- */
-const ACCOUNTS = (function buildAccounts(){
-  const out = {};
-  for(const encEmail in ENCODED_ACCOUNTS){
-    const decEmail = _decodeObf(encEmail);
-    const encPwd = ENCODED_ACCOUNTS[encEmail].pwd;
-    const decPwd = _decodeObf(encPwd);
-    const folders = ENCODED_ACCOUNTS[encEmail].folders || [];
-    if(decEmail) out[decEmail] = { pwd: decPwd, folders: folders.slice() };
-  }
-  return out;
-})();
 
 /* --- Session helpers --- */
 function setSession(email){ sessionStorage.setItem('cosmos_user', email); }
 function clearSession(){ sessionStorage.removeItem('cosmos_user'); }
 function getSession(){ return sessionStorage.getItem('cosmos_user'); }
 
-/* --- Menu helpers --- */
+/* --- Menu & overlay helpers --- */
 function openMenu(id){
   const m = document.getElementById(id);
-  if(m){ m.style.transform = 'translateX(0)'; m.setAttribute('aria-hidden','false'); document.body.classList.add('menu-open'); }
+  if(m){ m.style.transform = 'translateX(0)'; m.setAttribute('aria-hidden','false'); document.body.classList.add('menu-open'); const ov=document.getElementById('menuOverlay'); if(ov) ov.style.display='block'; }
 }
 function closeMenu(){
   const menus = document.querySelectorAll('.side-menu');
   menus.forEach(m=>{ m.style.transform='translateX(-110%)'; m.setAttribute('aria-hidden','true'); });
   document.body.classList.remove('menu-open');
+  const ov=document.getElementById('menuOverlay'); if(ov) ov.style.display='none';
   if(document.activeElement) document.activeElement.blur();
 }
-function toggleMenu(id){
-  const m = document.getElementById(id); if(!m) return;
-  const hidden = m.getAttribute('aria-hidden') === 'true';
-  if(hidden) openMenu(id); else closeMenu();
-}
+function toggleMenu(id){ const m=document.getElementById(id); if(!m) return; const hidden = m.getAttribute('aria-hidden')==='true'; if(hidden) openMenu(id); else closeMenu(); }
 
-/* --- Authentication (uses decoded ACCOUNTS) --- */
+/* --- Auth --- */
 function attemptLogin(ev){
   ev && ev.preventDefault();
-  const email = document.getElementById('email')?.value?.trim() || '';
-  const password = document.getElementById('password')?.value?.trim() || '';
-  const acct = ACCOUNTS[email];
-  if(acct && acct.pwd === password){
+  const email = (document.getElementById('email')||{}).value || '';
+  const pass = (document.getElementById('password')||{}).value || '';
+  const acc = ACCOUNTS[email];
+  if(acc && acc.pwd === pass){
     setSession(email);
-    // replace so login not in history
+    // prevent back to login
     location.replace('dashboard.html');
-  } else {
-    alert('Invalid credentials');
-  }
+  } else alert('Invalid credentials');
 }
-function logoutNow(){ clearSession(); location.replace('index.html'); }
+function logoutNow(){ clearSession(); location.replace('logout.html'); }
 function logoutFromMenu(){ if(confirm('Logout?')) logoutNow(); }
 
 /* --- Dashboard rendering --- */
@@ -100,26 +61,41 @@ function renderDashboard(){
   const user = getSession();
   if(!user){ location.replace('index.html'); return; }
   history.replaceState(null,'',location.href);
-  const userTag = document.getElementById('userTag');
-  if(userTag) userTag.textContent = user;
+  document.getElementById('userTag').textContent = user;
   const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
   const container = document.getElementById('folders');
-  if(container){
-    container.innerHTML = '';
-    allowed.forEach(folder=>{
-      const el = document.createElement('div');
-      el.className = 'folder';
-      el.innerHTML = `<span>${folder}</span><span class="small">view</span>`;
-      el.addEventListener('click', ()=> { location.replace(`viewer.html?folder=${encodeURIComponent(folder)}`); });
-      container.appendChild(el);
+  if(!container) return;
+  container.innerHTML = '';
+  allowed.forEach(f=>{
+    const el = document.createElement('div');
+    el.className = 'folder';
+    const favs = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
+    const star = favs.includes(f) ? '★' : '☆';
+    el.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><span>${f}</span><button class="btn small-btn fav-toggle">${star}</button></div><span class="small">View</span>`;
+    el.addEventListener('click', ()=> location.replace(`viewer.html?folder=${encodeURIComponent(f)}`));
+    el.querySelector('.fav-toggle').addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      toggleFavorite(user, f, el);
     });
-  }
-  document.getElementById('menuToggle')?.addEventListener('click', ()=> toggleMenu('sideMenu'));
-  document.getElementById('logoutBtnTop')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
-  window.addEventListener('popstate', ()=> {
-    if(!getSession()) location.replace('index.html');
-    else history.replaceState(null,'',location.href);
+    container.appendChild(el);
   });
+
+  document.getElementById('logoutBtnTop')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
+  window.addEventListener('popstate', ()=> { if(!getSession()) location.replace('index.html'); else history.replaceState(null,'',location.href); });
+}
+
+/* favorite toggle helper */
+function toggleFavorite(user, folder, el){
+  const key = `cosmos_favs_${user}`;
+  const arr = JSON.parse(localStorage.getItem(key) || '[]');
+  const idx = arr.indexOf(folder);
+  if(idx === -1) arr.push(folder); else arr.splice(idx,1);
+  localStorage.setItem(key, JSON.stringify(arr));
+  // update UI star if element passed
+  if(el){
+    const btn = el.querySelector('.fav-toggle');
+    if(btn) btn.textContent = arr.includes(folder) ? '★' : '☆';
+  }
 }
 
 /* --- Viewer --- */
@@ -127,90 +103,96 @@ function initViewer(){
   const user = getSession();
   if(!user){ location.replace('index.html'); return; }
   history.replaceState(null,'',location.href);
-  document.getElementById('menuToggleV')?.addEventListener('click', ()=> toggleMenu('sideMenuV'));
-  document.getElementById('logoutBtnTopV')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
-  document.getElementById('backBtn')?.addEventListener('click', ()=> location.replace('dashboard.html'));
+
   const params = new URLSearchParams(window.location.search);
   const folder = params.get('folder');
   if(!folder){ location.replace('dashboard.html'); return; }
-  const allowed = ACCOUNTS[user] ? ACCOUNTS[user].folders : [];
+  const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
   if(!allowed.includes(folder)){ alert('Access denied'); location.replace('dashboard.html'); return; }
-  const tag = document.getElementById('userTagV') || document.getElementById('userTag');
-  if(tag) tag.textContent = user;
-  const titleEl = document.getElementById('folderName'); if(titleEl) titleEl.textContent = folder;
+
+  document.getElementById('userTagV').textContent = user;
+  document.getElementById('folderName').textContent = folder;
+
   const path = FILE_MAP[folder];
-  fetch(path, {cache:'no-store'})
-    .then(r => { if(!r.ok) throw new Error('Network'); return r.text(); })
-    .then(txt => { document.getElementById('fileContent').textContent = txt; })
-    .catch(()=> { document.getElementById('fileContent').textContent = 'Error loading file'; });
+  fetch(path, {cache:'no-store'}).then(r => { if(!r.ok) throw new Error(); return r.text(); }).then(txt=>{
+    document.getElementById('fileContent').textContent = txt;
+  }).catch(()=> { document.getElementById('fileContent').textContent = 'Error loading file'; });
+
   document.getElementById('downloadBtnViewer')?.addEventListener('click', ()=>{
-    fetch(path).then(r => r.blob()).then(blob=>{
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = folder.replace(/\s+/g,'_') + '.txt';
-      a.click();
-      URL.revokeObjectURL(a.href);
+    fetch(path).then(r=>r.blob()).then(blob=>{
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download = folder.replace(/\s+/g,'_') + '.txt'; a.click(); URL.revokeObjectURL(a.href);
     }).catch(()=> alert('Download failed'));
   });
+
   document.getElementById('favBtn')?.addEventListener('click', ()=>{
-    const key = `cosmos_favs_${user}`;
-    const arr = JSON.parse(localStorage.getItem(key) || '[]');
-    if(!arr.includes(folder)) arr.push(folder);
-    localStorage.setItem(key, JSON.stringify(arr));
-    alert('Added to favorites');
+    toggleFavorite(user, folder);
+    alert('Toggled favorite for ' + folder);
   });
-  window.addEventListener('popstate', ()=> {
-    if(!getSession()) location.replace('index.html');
-    else history.replaceState(null,'',location.href);
-  });
+
+  document.getElementById('backBtn')?.addEventListener('click', ()=> location.replace('dashboard.html'));
+  document.getElementById('menuToggleV')?.addEventListener('click', ()=> toggleMenu('sideMenuV'));
+  document.getElementById('logoutBtnTopV')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
+
+  window.addEventListener('popstate', ()=> { if(!getSession()) location.replace('index.html'); else history.replaceState(null,'',location.href); });
 }
 
-/* --- Search (simple prompt-driven - searches allowed files) --- */
-function searchSite(){
+/* --- Search (scans allowed files) --- */
+function performSearch(query){
+  if(!query || !query.trim()){ alert('Type a search term'); return; }
   const user = getSession();
   if(!user){ location.replace('index.html'); return; }
-  const term = prompt('Search term:');
-  if(!term) return;
-  const allowed = ACCOUNTS[user] ? ACCOUNTS[user].folders : [];
-  let completed = 0;
-  const hits = [];
+  const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
+  const lc = query.toLowerCase();
+  const results = [];
+  let done = 0;
   allowed.forEach(folder=>{
     const path = FILE_MAP[folder];
-    fetch(path).then(r => r.text()).then(txt=>{
-      if(txt.toLowerCase().includes(term.toLowerCase()) || folder.toLowerCase().includes(term.toLowerCase())){
-        hits.push(folder);
+    fetch(path, {cache:'no-store'}).then(r=>r.text()).then(txt=>{
+      if((folder.toLowerCase().includes(lc)) || (txt && txt.toLowerCase().includes(lc))) {
+        // snippet
+        const idx = txt ? txt.toLowerCase().indexOf(lc) : -1;
+        let snippet = '';
+        if(idx >= 0){
+          const start = Math.max(0, idx - 50);
+          const end = Math.min(txt.length, idx + 50);
+          snippet = txt.substring(start, end).replace(/\n/g,' ');
+        }
+        results.push({folder, snippet});
       }
     }).catch(()=>{}).finally(()=>{
-      completed++;
-      if(completed === allowed.length){
-        if(hits.length) alert('Matches in: ' + hits.join(', '));
-        else alert('No matches');
+      done++;
+      if(done === allowed.length){
+        if(!results.length){ alert('No results'); return; }
+        // show results in prompt-like list and open chosen
+        const list = results.map((r,i)=>`${i+1}. ${r.folder} — ${r.snippet? r.snippet : 'match'}`).join('\n\n');
+        const choice = prompt('Search results:\n\n' + list + '\n\nEnter number to open (cancel to skip)');
+        const num = parseInt(choice);
+        if(num && num>0 && num<=results.length) location.replace(`viewer.html?folder=${encodeURIComponent(results[num-1].folder)}`);
       }
     });
   });
 }
 
-/* --- Help & Favorites helpers --- */
-function showHelp(){
-  alert('Help\nContact: hydramusic@gmail.com\nInstagram: @saaid_sarosh77');
-}
-function showFavorites(){
-  const user = getSession();
-  if(!user){ alert('Not signed in'); return; }
-  const arr = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
-  if(!arr.length) alert('No favorites');
-  else alert('Favorites:\n' + arr.join('\n'));
+/* wrapper named LW.performSearch to avoid name clash */
+function performSearchWrapper(q){
+  performSearch(q);
 }
 
-/* --- Export API --- */
+/* --- Favorites / Help quick functions for menu pages --- */
+function openFavoritesPage(){ location.replace('favorites.html'); }
+function openHelpPage(){ location.replace('help.html'); }
+
+/* --- Expose API --- */
 window.LW = {
   attemptLogin,
   renderDashboard,
   initViewer,
   logoutFromMenu,
   logoutNow,
-  searchSite,
-  showHelp,
-  showFavorites,
+  performSearch: performSearchWrapper,
+  performSearchDirect: performSearch,
+  toggleFavorite,
+  openFavoritesPage,
+  openHelpPage,
   getSession
 };

@@ -1,4 +1,4 @@
-/* Cosmos style.css - responsive + mobile polish + circular logos */
+/* Cosmos style.css - responsive + menu overlay + toast styles */
 :root{
   --bg:#071222; --card:#0f1724; --muted:#9aa7b2; --accent:#60a5fa; --accent2:#3b82f6; --radius:12px; --gap:12px;
 }
@@ -78,3 +78,34 @@ a{color:var(--accent);text-decoration:none}
 
 /* small helper button */
 .small { font-size:0.92rem; color:var(--muted) }
+
+/* === Toast (notification) styles === */
+#cosmos_toast_container{
+  position:fixed;
+  top:18px;
+  right:18px;
+  z-index:9999;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-width:360px;
+  pointer-events:none;
+}
+.cosmos_toast{
+  pointer-events:auto;
+  background:rgba(10,20,30,0.92);
+  color:#eaf6ff;
+  padding:10px 14px;
+  border-radius:10px;
+  box-shadow:0 8px 30px rgba(0,0,0,0.5);
+  transform:translateY(-8px);
+  opacity:0;
+  transition:all 260ms cubic-bezier(.2,.9,.2,1);
+  font-weight:600;
+  font-size:0.95rem;
+  border-left:4px solid transparent;
+}
+.cosmos_toast.visible{ transform:translateY(0); opacity:1; }
+.cosmos_toast.info{ border-left-color: #60a5fa; }
+.cosmos_toast.success{ border-left-color: #34d399; }
+.cosmos_toast.error{ border-left-color: #fb7185; }

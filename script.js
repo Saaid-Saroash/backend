@@ -1,12 +1,12 @@
-/* script.js - Cosmos app (robust internal-nav marking + session handling)
-   - Marks internal navs early (pointerdown, click, keydown, submit)
-   - Stores timestamp in sessionStorage ('cosmos_internal_nav')
-   - When page becomes hidden, treats recent timestamps as internal navs (within 3s)
-   - Otherwise clears session (requires login on return)
-   - Preserves search, favorites, viewer, menu, etc.
+/* script.js - Cosmos app (robust, debugged)
+   - localStorage session (cosmos_user)
+   - internal nav timestamp marking (cosmos_internal_nav_ts)
+   - visibility/pagehide clears session except for internal nav within THRESH ms
+   - anchor/pointer/form/key intercepts + overridden location.replace/assign
+   - functions exported via window.LW for HTML pages
 */
 
-/* --- Accounts & folders --- */
+/* --- Config --- */
 const ALL_FOLDERS = [
   "backend cmds","instagram","toutatis","dead zone",
   "codes","blueprints","prototypes"
@@ -28,22 +28,21 @@ const ACCOUNTS = {
   "hackersuniverse@unkown.com": { pwd: "26112009", folders: ALL_FOLDERS.slice() }
 };
 
-/* --- session helpers --- */
-function setSession(email){ sessionStorage.setItem('cosmos_user', email); }
-function clearSession(){ sessionStorage.removeItem('cosmos_user'); }
-function getSession(){ return sessionStorage.getItem('cosmos_user'); }
-
-/* --- INTERNAL NAV MARKING (timestamp) --- */
+/* --- Storage helpers --- */
+const USER_KEY = 'cosmos_user';
 const INTERNAL_KEY = 'cosmos_internal_nav_ts';
+function setSession(email){ try{ localStorage.setItem(USER_KEY, email); } catch(e){} }
+function clearSession(){ try{ localStorage.removeItem(USER_KEY); } catch(e){} }
+function getSession(){ try{ return localStorage.getItem(USER_KEY); } catch(e){ return null; } }
+
+/* --- Internal nav marking --- */
 function markInternalNav(){
-  try {
-    sessionStorage.setItem(INTERNAL_KEY, String(Date.now()));
-  } catch(e){}
+  try { localStorage.setItem(INTERNAL_KEY, String(Date.now())); } catch(e){}
 }
 
-/* Install many early handlers so we mark internal nav before navigation */
-(function installInternalNavMarking(){
-  // programmatic navigation (replace/assign)
+/* --- Install interceptors: programmatic + user actions --- */
+(function installNavInterceptors(){
+  // override location.replace and assign to mark internal nav
   try {
     const nativeReplace = window.location.replace.bind(window.location);
     window.location.replace = function(url){
@@ -57,26 +56,24 @@ function markInternalNav(){
         return nativeAssign(url);
       };
     }
-  } catch(e){ /* ignore if cannot override */ }
+  } catch(e){ console.warn('Could not override location methods', e); }
 
-  // pointerdown (covers mouse/touch/stylus) - earliest user interaction
+  // pointerdown earliest user event before navigation
   document.addEventListener('pointerdown', function(ev){
     const a = ev.target.closest && ev.target.closest('a');
     const btn = ev.target.closest && ev.target.closest('button');
     const form = ev.target.closest && ev.target.closest('form');
-    if(a && a.href && a.target !== '_blank') {
-      // only mark for same-origin http(s) links
+    if(a && a.href && a.target !== '_blank'){
       try {
         const url = new URL(a.href, location.href);
         if(url.origin === location.origin && url.protocol.startsWith('http')) markInternalNav();
       } catch(e){}
     } else if(btn || form){
-      // a button or form may submit/navigate internally
       markInternalNav();
     }
   }, {capture:true, passive:true});
 
-  // click capture as fallback
+  // click fallback
   document.addEventListener('click', function(ev){
     const a = ev.target.closest && ev.target.closest('a');
     if(a && a.href && a.target !== '_blank'){
@@ -87,14 +84,13 @@ function markInternalNav(){
     }
   }, {capture:true});
 
-  // keydown (Enter) for links/buttons/active element
+  // keydown (Enter) marking
   document.addEventListener('keydown', function(ev){
     if(ev.key === 'Enter'){
       const active = document.activeElement;
       if(active){
-        if(active.tagName === 'A' || active.tagName === 'BUTTON' || active.tagName === 'INPUT' || active.tagName === 'TEXTAREA'){
-          markInternalNav();
-        } else {
+        if(['A','BUTTON','INPUT','TEXTAREA','SELECT'].includes(active.tagName)) markInternalNav();
+        else {
           const a = active.closest && active.closest('a');
           const btn = active.closest && active.closest('button');
           if(a || btn) markInternalNav();
@@ -109,37 +105,29 @@ function markInternalNav(){
   }, {capture:true});
 })();
 
-/* --- Visibility/pagehide handler using timestamp threshold --- */
+/* --- Visibility/pagehide handler --- */
 (function installVisibilityHandler(){
-  const THRESH = 3000; // ms; treat nav as internal if timestamp within this window
+  const THRESH = 5000; // ms window to treat hidden as internal nav
   function handleHidden(){
     try {
-      const ts = sessionStorage.getItem(INTERNAL_KEY);
-      if(ts){
-        const when = parseInt(ts,10) || 0;
-        const now = Date.now();
-        if(now - when <= THRESH){
-          // internal nav: remove flag and keep session
-          sessionStorage.removeItem(INTERNAL_KEY);
+      const tsRaw = localStorage.getItem(INTERNAL_KEY);
+      if(tsRaw){
+        const ts = parseInt(tsRaw,10) || 0;
+        if(Date.now() - ts <= THRESH){
+          // internal navigation -> remove flag and keep session
+          localStorage.removeItem(INTERNAL_KEY);
           return;
         }
       }
-      // not internal => clear session
-      sessionStorage.removeItem('cosmos_user');
-      sessionStorage.removeItem(INTERNAL_KEY);
+      // not internal -> clear session
+      localStorage.removeItem(USER_KEY);
+      localStorage.removeItem(INTERNAL_KEY);
     } catch(e){
-      try { sessionStorage.removeItem('cosmos_user'); sessionStorage.removeItem(INTERNAL_KEY); } catch(_){}
+      try { localStorage.removeItem(USER_KEY); localStorage.removeItem(INTERNAL_KEY); } catch(_) {}
     }
   }
-
-  document.addEventListener('visibilitychange', ()=>{
-    if(document.hidden) handleHidden();
-  });
-
-  window.addEventListener('pagehide', (ev) => {
-    // pagehide for some browsers (mobile)
-    handleHidden();
-  });
+  document.addEventListener('visibilitychange', ()=> { if(document.hidden) handleHidden(); });
+  window.addEventListener('pagehide', ()=> handleHidden());
 })();
 
 /* --- Menu helpers --- */
@@ -164,14 +152,16 @@ function attemptLogin(ev){
   const acc = ACCOUNTS[email];
   if(acc && acc.pwd === pass){
     setSession(email);
-    // navigation will be intercepted and flagged
+    markInternalNav(); // mark before navigating
     location.replace('dashboard.html');
-  } else alert('Invalid credentials');
+  } else {
+    alert('Invalid credentials');
+  }
 }
-function logoutNow(){ clearSession(); location.replace('logout.html'); }
+function logoutNow(){ localStorage.removeItem(USER_KEY); localStorage.removeItem(INTERNAL_KEY); location.replace('logout.html'); }
 function logoutFromMenu(){ if(confirm('Logout?')) logoutNow(); }
 
-/* --- Favorites helper --- */
+/* --- Favorites --- */
 function toggleFavorite(user, folder){
   if(!user) return;
   const key = `cosmos_favs_${user}`;
@@ -210,7 +200,6 @@ function renderDashboard(){
     el.querySelector('.fav-toggle')?.addEventListener('click', (ev)=>{
       ev.stopPropagation();
       toggleFavorite(user, f);
-      // update UI
       const favs2 = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
       const btn = el.querySelector('.fav-toggle');
       if(btn) btn.textContent = favs2.includes(f) ? '★' : '☆';
@@ -222,6 +211,7 @@ function renderDashboard(){
   document.getElementById('logoutBtnTop')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
   document.getElementById('menuToggle')?.addEventListener('click', ()=> toggleMenu('sideMenu'));
   document.getElementById('menuOverlay')?.addEventListener('click', ()=> closeMenu());
+
   window.addEventListener('popstate', ()=> { if(!getSession()) location.replace('index.html'); else history.replaceState(null,'',location.href); });
 }
 
@@ -233,10 +223,7 @@ function initViewer(){
 
   document.getElementById('menuToggleV')?.addEventListener('click', ()=> toggleMenu('sideMenuV'));
   document.getElementById('logoutBtnTopV')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
-  document.getElementById('backBtn')?.addEventListener('click', ()=> {
-    markInternalNav();
-    location.replace('dashboard.html');
-  });
+  document.getElementById('backBtn')?.addEventListener('click', ()=> { markInternalNav(); location.replace('dashboard.html'); });
 
   const params = new URLSearchParams(window.location.search);
   const folder = params.get('folder');
@@ -306,7 +293,6 @@ function performSearch(query){
     });
   });
 }
-
 function performSearchWrapper(q){ performSearch(q); }
 
 /* --- Favorites / Help --- */

@@ -5,27 +5,43 @@
   <title>Cosmos - Login</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <meta http-equiv="cache-control" content="no-store">
   <meta http-equiv="pragma" content="no-cache">
 </head>
 <body class="centered-vertical">
-  <div class="container box login-box" style="width:420px;max-width:95%;">
-    <div class="header">
-      <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo circle"/>
+  <div class="container box login-box" style="width:420px;max-width:96%;">
+    <div class="header" style="align-items:center;">
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo circle" />
       <div class="title">Cosmos — Login</div>
     </div>
 
-    <form onsubmit="LW.attemptLogin(event)" style="margin-top:16px">
+    <form onsubmit="LW.attemptLogin(event)" style="margin-top:16px" autocomplete="on">
+      <label class="small" for="email">Email</label>
       <input id="email" class="input" type="text" placeholder="Email" required autocomplete="username" />
-      <input id="password" class="input" type="password" placeholder="Password" required autocomplete="current-password" style="margin-top:10px"/>
+      <label class="small" for="password" style="margin-top:8px">Password</label>
+      <input id="password" class="input" type="password" placeholder="Password" required autocomplete="current-password" style="margin-top:8px"/>
       <div style="display:flex;gap:10px;margin-top:14px">
-        <button class="btn primary" type="submit">Sign in</button>
+        <button class="btn primary" type="submit">Sign In</button>
       </div>
-      <div style="margin-top:12px" class="small">Contact admin if you need credentials.</div>
+      <div style="margin-top:12px" class="small">Contact admin for credentials.</div>
     </form>
   </div>
 
   <script src="script.js"></script>
+  <script>
+    // ensure title and favicon are correct for this page
+    document.title = 'cosmos-login';
+    const f = document.querySelector('link[rel="icon"]');
+    if(f) f.href = 'assets/cosmos.jpg';
+    // lock session when page hidden (so returning requires login)
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        sessionStorage.removeItem('cosmos_user');
+      }
+    });
+    window.addEventListener('pagehide', () => sessionStorage.removeItem('cosmos_user'));
+  </script>
 </body>
 </html>

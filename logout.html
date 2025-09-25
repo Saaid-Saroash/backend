@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cosmos - Logged Out</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="centered-vertical">
+  <div class="container box" style="max-width:560px">
+    <div class="header">
+      <img src="assets/cosmos.jpg" class="nav-logo circle" alt="Cosmos" />
+      <div class="title">You are logged out</div>
+    </div>
+    <div style="margin-top:14px" class="small">For security, you must sign in again to view files.</div>
+    <div style="margin-top:18px">
+      <button id="gotoLogin" class="btn primary">Go to Login</button>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+  <script>
+    // clear session and replace history so back doesn't return to protected page
+    sessionStorage.removeItem('cosmos_user');
+    history.replaceState(null, '', 'logout.html');
+    document.getElementById('gotoLogin').addEventListener('click', ()=> location.replace('index.html'));
+    // also clear on visibilityhide
+    document.addEventListener('visibilitychange', ()=> { if(document.hidden) sessionStorage.removeItem('cosmos_user'); });
+  </script>
+</body>
+</html>

@@ -1,10 +1,295 @@
-python .\insta.py -s "65860131821%3Ak1e3BHlkSTnTHV%3A25%3AAYjbaOvI57PlBFt5P7FxmlbQP1zVMyCAjKbHi2c8Sgthids" -u saaid_sarosh77
-
 cd $env:USERPROFILE\Downloads
-
+python .\insta.py -s "65860131821%3Ak1e3BHlkSTnTHV%3A25%3AAYjbaOvI57PlBFt5P7FxmlbQP1zVMyCAjKbHi2c8Sgthids" -u saaid_sarosh77
+___________________________________________________________________________________________________________________________________
+pip install requests
+cd $env:USERPROFILE\Downloads
 python -m venv venv
-
 .\venv\Scripts\Activate.ps1
+pip install requests
+
+INSTA.PY
+________________________________________________________________________________________________________________________________________
+#!/usr/bin/env python3
+"""
+insta_follow_tracker.py
+Track followers for an Instagram account and report who followed / unfollowed since last snapshot.
+
+Usage examples:
+  # Basic one-shot compare (saves snapshot if none exists)
+  python insta_follow_tracker.py -s YOUR_SESSIONID -u target_username
+
+  # Use numeric ID instead of username
+  python insta_follow_tracker.py -s YOUR_SESSIONID -i 12345678
+
+  # Watch mode: refresh every 300 seconds (5 minutes)
+  python insta_follow_tracker.py -s YOUR_SESSIONID -u target_username --watch 300
+
+Notes / Safety:
+ - Use only your own sessionid (from browser cookies). Do not use others' sessionid.
+ - Instagram may rate-limit or block repeated requests; use reasonable intervals in --watch.
+ - This script uses unofficial endpoints that work with an authenticated session and common headers.
+"""
+
+import requests
+import argparse
+import json
+import time
+import sys
+import os
+from typing import Dict, Tuple, Set, Optional
+
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+APP_ID = "936619743392459"  # common X-IG-App-ID value used by web
+
+SNAPSHOT_FILENAME = "followers_snapshot.json"
+TIMEOUT = 15
+PAGE_SIZE = 200  # request page size (max per-request, may be limited server-side)
+
+
+def build_session(sessionid: str) -> requests.Session:
+    s = requests.Session()
+    s.headers.update({
+        "User-Agent": USER_AGENT,
+        "Referer": "https://www.instagram.com/",
+        "X-IG-App-ID": APP_ID,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+    })
+    # set cookie in session
+    s.cookies.set("sessionid", sessionid, domain=".instagram.com")
+    return s
+
+
+# --- helper: resolve username -> user id (if username provided) ---
+def resolve_userid(session: requests.Session, username: Optional[str], userid: Optional[str]) -> Optional[Tuple[str, str]]:
+    """
+    Returns tuple (user_id, canonical_username) or None on failure.
+    If username provided, query web_profile_info endpoint to get id.
+    If userid provided, attempt to fetch username via users/{id}/info/.
+    """
+    if username:
+        url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
+        try:
+            r = session.get(url, timeout=TIMEOUT)
+            if r.status_code == 200:
+                data = r.json()
+                # Typical shape: {"data": {"user": {...}}}
+                user = data.get("data", {}).get("user") or data.get("user")
+                if user and ("pk" in user or "id" in user):
+                    uid = str(user.get("pk") or user.get("id"))
+                    uname = user.get("username") or username
+                    return uid, uname
+        except Exception:
+            pass
+        # fallback to public page JSON
+        url2 = f"https://www.instagram.com/{username}/?__a=1"
+        try:
+            r2 = session.get(url2, timeout=TIMEOUT)
+            if r2.status_code == 200:
+                js = r2.json()
+                # possible shapes
+                user = js.get("graphql", {}).get("user") or js.get("user")
+                if user and ("id" in user):
+                    return str(user["id"]), user.get("username", username)
+        except Exception:
+            pass
+        print(f"❌ Failed to resolve username: {username}")
+        return None
+
+    if userid:
+        # try /users/{id}/info/
+        url = f"https://i.instagram.com/api/v1/users/{userid}/info/"
+        try:
+            r = session.get(url, timeout=TIMEOUT)
+            if r.status_code == 200:
+                js = r.json()
+                # shape: {"user": {...}}
+                u = js.get("user")
+                if u and ("username" in u):
+                    return str(userid), u.get("username")
+        except Exception:
+            pass
+        # as last resort accept provided numeric id as-is
+        return str(userid), str(userid)
+
+    return None
+
+
+# --- fetch full followers list using private API friendship endpoint (requires auth) ---
+def fetch_all_followers(session: requests.Session, user_id: str) -> Optional[Dict[str, Dict]]:
+    """
+    Returns a dict mapping follower_id -> {username, full_name, pk, profile_pic_url}
+    or None on error.
+    Uses pagination with 'max_id' param.
+    """
+    followers = {}
+    url_template = f"https://i.instagram.com/api/v1/friendships/{user_id}/followers/?count={PAGE_SIZE}"
+    next_max_id = None
+    tries = 0
+
+    while True:
+        tries += 1
+        url = url_template + (f"&max_id={next_max_id}" if next_max_id else "")
+        try:
+            r = session.get(url, timeout=TIMEOUT)
+        except Exception as e:
+            print("⚠️ Network error while fetching followers:", e)
+            return None
+
+        if r.status_code == 200:
+            try:
+                js = r.json()
+            except ValueError:
+                print("⚠️ Response not JSON; got HTTP 200 but couldn't parse.")
+                return None
+
+            # typical shape: {"users":[{...}], "next_max_id": "..."}
+            users = js.get("users") or js.get("users") or []
+            for u in users:
+                pk = str(u.get("pk") or u.get("id"))
+                followers[pk] = {
+                    "username": u.get("username"),
+                    "full_name": u.get("full_name"),
+                    "profile_pic_url": u.get("profile_pic_url") or u.get("profile_pic_url_hd"),
+                }
+
+            # pagination keys vary: next_max_id or next_max_id and more_available field
+            next_max_id = js.get("next_max_id") or js.get("next_max_id") or None
+            more_available = js.get("more_available")
+            # if no pagination token and no more_available, break
+            if not next_max_id and not more_available:
+                break
+            # safety: break if nothing returned to avoid infinite loop
+            if not users:
+                break
+
+            # small delay to be polite and avoid rate-limits
+            time.sleep(1.0)
+
+        elif r.status_code == 429:
+            print("❌ Rate limited by Instagram (HTTP 429). Back off and try later.")
+            return None
+        else:
+            print(f"❌ Failed to fetch followers (HTTP {r.status_code}).")
+            return None
+
+        # safeguard against runaway loop
+        if tries > 200:
+            print("⚠️ Too many pages; aborting.")
+            break
+
+    return followers
+
+
+# --- snapshot management ---
+def load_snapshot(filename: str = SNAPSHOT_FILENAME) -> Dict[str, Dict]:
+    if not os.path.exists(filename):
+        return {}
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def save_snapshot(data: Dict[str, Dict], filename: str = SNAPSHOT_FILENAME):
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print("⚠️ Failed to save snapshot:", e)
+
+
+# --- diff and pretty print ---
+def diff_followers(old: Dict[str, Dict], new: Dict[str, Dict]) -> Tuple[Set[str], Set[str]]:
+    old_set = set(old.keys())
+    new_set = set(new.keys())
+    added = new_set - old_set
+    removed = old_set - new_set
+    return added, removed
+
+
+def print_changes(added: Set[str], removed: Set[str], old: Dict[str, Dict], new: Dict[str, Dict]):
+    if not added and not removed:
+        print("No changes since last snapshot.")
+        return
+
+    if added:
+        print(f"\n➕ New followers ({len(added)}):")
+        for pk in sorted(added):
+            info = new.get(pk, {})
+            print(f"  - {info.get('username') or '(unknown)'} (id: {pk}) - {info.get('full_name') or ''}")
+    if removed:
+        print(f"\n➖ Lost followers ({len(removed)}):")
+        for pk in sorted(removed):
+            info = old.get(pk, {})
+            print(f"  - {info.get('username') or '(unknown)'} (id: {pk}) - {info.get('full_name') or ''}")
+
+
+# --- main flow ---
+def run_once(sessionid: str, username: Optional[str], userid: Optional[str], snapshot_file: str):
+    session = build_session(sessionid)
+    resolved = resolve_userid(session, username, userid)
+    if not resolved:
+        print("❌ Could not resolve target account. Check username/id and session permissions.")
+        return
+    target_uid, canonical_username = resolved
+    print(f"Fetching followers for {canonical_username} (id {target_uid}) ... (may take a while)")
+
+    new_followers = fetch_all_followers(session, target_uid)
+    if new_followers is None:
+        print("❌ Failed to fetch followers.")
+        return
+
+    old_snapshot = load_snapshot(snapshot_file)
+    added, removed = diff_followers(old_snapshot, new_followers)
+
+    print_changes(added, removed, old_snapshot, new_followers)
+
+    # print totals
+    print(f"\nTotal current followers fetched: {len(new_followers)}")
+    if old_snapshot:
+        print(f"Previous snapshot size: {len(old_snapshot)}")
+
+    # Save new snapshot
+    save_snapshot(new_followers, snapshot_file)
+    print(f"✅ Snapshot saved to {snapshot_file}")
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Track Instagram followers and show who followed/unfollowed since last snapshot.")
+    parser.add_argument("-s", "--sessionid", required=True, help="Your Instagram sessionid cookie (use your own)")
+    parser.add_argument("-u", "--username", help="Target Instagram username (e.g., instagram)")
+    parser.add_argument("-i", "--id", help="Target Instagram numeric id")
+    parser.add_argument("--snapshot", default=SNAPSHOT_FILENAME, help="Snapshot filename (default: followers_snapshot.json)")
+    parser.add_argument("--watch", type=int, nargs="?", const=300, help="Optional watch mode: integer interval in seconds (default 300). Runs repeatedly until Ctrl+C.")
+    args = parser.parse_args()
+
+    if not args.username and not args.id:
+        print("❌ Provide either -u username or -i numeric id.")
+        sys.exit(1)
+
+    try:
+        if args.watch:
+            interval = int(args.watch)
+            print(f"Entering watch mode. Refresh interval: {interval}s. Ctrl+C to stop.")
+            while True:
+                run_once(args.sessionid, args.username, args.id, args.snapshot)
+                time.sleep(interval)
+        else:
+            run_once(args.sessionid, args.username, args.id, args.snapshot)
+    except KeyboardInterrupt:
+        print("\nStopped by user. Exiting.")
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main()
+______________________________________________________________________________________________________________________________________________
 
 pip install flask requests
 

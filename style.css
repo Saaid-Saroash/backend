@@ -1,44 +1,43 @@
-/* keep your previous Cosmos CSS but override/importantly add these small changes */
-/* paste your previous full style.css content here (the one you already have),
-   then append/replace the following snippets. For convenience I give full file combining earlier CSS + added bits. */
-
+/* Cosmos style.css - full responsive + mobile polish + circular logos */
 :root{
-  --bg:#071222; --card:#0f1724; --muted:#9aa7b2; --accent:#60a5fa; --accent2:#3b82f6;
-  --radius:12px; --gap:12px;
+  --bg:#071222; --card:#0f1724; --muted:#9aa7b2; --accent:#60a5fa; --accent2:#3b82f6; --radius:12px; --gap:12px;
 }
 *{box-sizing:border-box}
-html,body{height:100%;margin:0;background:linear-gradient(180deg,#071123,#071827);color:#e6eef6;font-family:Inter,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+html,body{height:100%;margin:0;background:linear-gradient(180deg,#071123,#071827);color:#e6eef6;font-family:'Poppins',Inter,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
 a{color:var(--accent);text-decoration:none}
 .container{max-width:1100px;margin:28px auto;padding:18px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));border-radius:var(--radius);box-shadow:0 12px 40px rgba(0,0,0,0.6)}
 .header{display:flex;align-items:center;gap:12px}
-.title{font-weight:800;font-size:1.05rem}
+.title{font-weight:700;font-size:1.05rem;text-transform:capitalize}
 .row{display:flex;gap:12px;align-items:center}
 .small{color:var(--muted);font-size:0.92rem}
 .box{background:var(--card);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.03)}
 .grid{display:grid;grid-template-columns:300px 1fr;gap:var(--gap);margin-top:14px}
 
-/* Inputs & buttons */
+/* inputs and buttons */
 .input{width:100%;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:inherit;font-size:0.98rem}
 .btn{padding:10px 14px;border-radius:10px;border:none;cursor:pointer;font-weight:700;min-height:44px;display:inline-flex;align-items:center;justify-content:center}
 .btn.primary{background:linear-gradient(90deg,var(--accent),var(--accent2));color:#021428}
-.link{color:var(--accent)}
+.small-btn{padding:6px 8px;font-size:0.9rem;border-radius:8px;min-height:36px}
 
 /* top nav */
 .topnav{height:64px;display:flex;align-items:center;gap:12px;padding:8px 16px;background:linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,0,0,0.06));border-bottom:1px solid rgba(255,255,255,0.02);position:sticky;top:0;z-index:50}
 .nav-left{display:flex;align-items:center;gap:12px}
 .nav-logo{height:44px;width:44px;object-fit:cover;border-radius:50%;border:1px solid rgba(255,255,255,0.03)}
-.site-title{font-weight:800;font-size:1.05rem}
+.site-title{font-weight:700;font-size:1.05rem;text-transform:capitalize}
+.nav-mid{flex:1;display:flex;gap:8px;align-items:center;justify-content:center}
 .nav-right{margin-left:auto;display:flex;gap:10px;align-items:center}
-.nav-logout{background:transparent;border:1px solid rgba(255,255,255,0.04);color:var(--muted);padding:8px 10px;border-radius:8px}
+
+/* overlay used to close menu by clicking outside */
+.menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.25);z-index:55;display:none}
 
 /* hamburger */
-.hamburger{background:transparent;border:none;color:inherit;font-size:1.2rem;padding:8px;cursor:pointer}
+.hamburger{background:transparent;border:none;color:inherit;font-size:1.25rem;padding:8px;cursor:pointer}
 
 /* side menu */
-.side-menu{position:fixed;left:0;top:0;height:100vh;width:260px;background:linear-gradient(180deg,var(--card), #071220);box-shadow:2px 6px 30px rgba(0,0,0,0.6);transform:translateX(-110%);transition:transform 260ms ease-in-out;z-index:60;padding:14px;overflow:auto;border-right:1px solid rgba(255,255,255,0.02)}
+.side-menu{position:fixed;left:0;top:0;height:100vh;width:280px;background:linear-gradient(180deg,var(--card), #071220);box-shadow:2px 6px 30px rgba(0,0,0,0.6);transform:translateX(-110%);transition:transform 210ms ease-in-out;z-index:60;padding:14px;overflow:auto;border-right:1px solid rgba(255,255,255,0.02)}
 .side-header{display:flex;align-items:center;gap:12px;margin-bottom:10px}
 .side-logo{height:44px;width:44px;border-radius:50%;object-fit:cover}
-.side-title{font-weight:800}
+.side-title{font-weight:700;text-transform:capitalize}
 .side-list{list-style:none;padding:0;margin:8px 0;display:flex;flex-direction:column;gap:8px}
 .side-list a{display:block;padding:10px;border-radius:8px;color:inherit;background:transparent}
 .side-divider{height:1px;background:rgba(255,255,255,0.02);margin:8px 0}
@@ -46,33 +45,26 @@ a{color:var(--accent);text-decoration:none}
 /* folders list */
 .folders{display:flex;flex-direction:column;gap:10px}
 .folder{padding:12px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(0,0,0,0.06));cursor:pointer;border:1px solid rgba(255,255,255,0.02);display:flex;align-items:center;justify-content:space-between;font-weight:700}
-.folder .fav {margin-left:10px;color:var(--muted);cursor:pointer}
+.folder .fav-toggle{background:transparent;border:none;color:var(--muted);cursor:pointer}
 .folder:active{transform:translateY(1px)}
 
 /* viewer pre */
 .editor, pre.editor{min-height:320px;padding:14px;border-radius:10px;background:linear-gradient(180deg, rgba(0,0,0,0.12), rgba(255,255,255,0.01));outline:none;border:1px solid rgba(255,255,255,0.02);white-space:pre-wrap;overflow:auto;font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", monospace;font-size:0.95rem;line-height:1.45;color:#dceffb}
 .page-wrap{transition:transform 260ms ease-in-out}
-.search-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:80}
-.search-box{width:92%;max-width:820px;background:var(--card);padding:14px;border-radius:12px;border:1px solid rgba(255,255,255,0.03);box-shadow:0 12px 40px rgba(0,0,0,0.6)}
 
-/* favorites UI */
-.fav-badge{background:rgba(96,165,250,0.12);color:var(--accent);padding:6px 8px;border-radius:8px;font-weight:700}
-
-/* small screens */
+/* responsive / mobile */
 @media (max-width:900px){
   .grid{grid-template-columns:1fr}
   .container{margin:12px;padding:12px}
   .nav-logo{height:36px;width:36px}
   .site-title{font-size:1rem}
   .title{font-size:1rem}
+  .nav-mid{display:none}
 }
 
 /* mobile polish */
 @media (max-width:600px){
   .topnav{height:56px;padding:8px 10px}
-  .nav-logo{height:36px;width:36px}
-  .site-title{display:none}
-  .hamburger{font-size:1.25rem}
   .side-menu{width:78%;max-width:320px}
   .folder{padding:14px;border-radius:12px;font-size:1rem}
   .btn{min-height:48px;width:100%}
@@ -81,22 +73,8 @@ a{color:var(--accent);text-decoration:none}
   .editor{font-size:0.95rem}
 }
 
-/* tiny devices */
-@media (max-width:420px){
-  pre.editor{font-size:0.9rem}
-  .side-list a{padding:12px}
-}
+/* login centered helper */
+.centered-vertical{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:12px}
 
-/* when menu open (small devices), lock body scroll */
-body.menu-open{overflow:hidden}
-/* existing styles … */
-
-.nav-logo, .side-logo {
-  height:44px;
-  width:44px;
-  object-fit:cover;
-  border-radius:50%; /* circle */
-  border:1px solid rgba(255,255,255,0.03)
-}
-.circle { border-radius:50%; }
-
+/* small helper button */
+.small { font-size:0.92rem; color:var(--muted) }

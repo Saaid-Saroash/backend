@@ -35,13 +35,7 @@
     document.title = 'cosmos-login';
     const f = document.querySelector('link[rel="icon"]');
     if(f) f.href = 'assets/cosmos.jpg';
-    // lock session when page hidden (so returning requires login)
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) {
-        sessionStorage.removeItem('cosmos_user');
-      }
-    });
-    window.addEventListener('pagehide', () => sessionStorage.removeItem('cosmos_user'));
+    // NOTE: Do NOT clear session here — clearing is handled on dashboard/viewer so login -> dashboard works.
   </script>
 </body>
 </html>

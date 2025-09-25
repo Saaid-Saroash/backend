@@ -1,12 +1,11 @@
-/* script.js - Cosmos app (robust, debugged)
-   - localStorage session (cosmos_user)
-   - internal nav timestamp marking (cosmos_internal_nav_ts)
-   - visibility/pagehide clears session except for internal nav within THRESH ms
-   - anchor/pointer/form/key intercepts + overridden location.replace/assign
-   - functions exported via window.LW for HTML pages
+/* script.js - Cosmos app (robust transfer-token + sessionStorage approach)
+   - sessionStorage holds current-tab user (key: 'cosmos_user_ss')
+   - localStorage transfer token (key: 'cosmos_transfer') carries login across navigation reliably
+   - visibility/pagehide clears sessionStorage unless a fresh transfer token exists
+   - includes dashboard, viewer, search, favorites, menu handling
 */
 
-/* --- Config --- */
+/* === CONFIG === */
 const ALL_FOLDERS = [
   "backend cmds","instagram","toutatis","dead zone",
   "codes","blueprints","prototypes"
@@ -28,109 +27,146 @@ const ACCOUNTS = {
   "hackersuniverse@unkown.com": { pwd: "26112009", folders: ALL_FOLDERS.slice() }
 };
 
-/* --- Storage helpers --- */
-const USER_KEY = 'cosmos_user';
-const INTERNAL_KEY = 'cosmos_internal_nav_ts';
-function setSession(email){ try{ localStorage.setItem(USER_KEY, email); } catch(e){} }
-function clearSession(){ try{ localStorage.removeItem(USER_KEY); } catch(e){} }
-function getSession(){ try{ return localStorage.getItem(USER_KEY); } catch(e){ return null; } }
+/* === Storage keys and helpers === */
+const SESSION_KEY = 'cosmos_user_ss';         // sessionStorage key (per-tab)
+const TRANSFER_KEY = 'cosmos_transfer';       // localStorage transfer token
+const TRANSFER_TTL = 7000;                    // ms: accept transfer tokens younger than this
 
-/* --- Internal nav marking --- */
-function markInternalNav(){
-  try { localStorage.setItem(INTERNAL_KEY, String(Date.now())); } catch(e){}
+function setSessionLocal(email){ try { sessionStorage.setItem(SESSION_KEY, email); } catch(e){} }
+function clearSessionLocal(){ try { sessionStorage.removeItem(SESSION_KEY); } catch(e){} }
+function getSessionLocal(){ try { return sessionStorage.getItem(SESSION_KEY); } catch(e){ return null; } }
+
+/* create transfer token in localStorage to pass login across pages */
+function createTransferToken(email){
+  try {
+    const payload = {user: email, ts: Date.now()};
+    localStorage.setItem(TRANSFER_KEY, JSON.stringify(payload));
+  } catch(e){}
 }
 
-/* --- Install interceptors: programmatic + user actions --- */
-(function installNavInterceptors(){
-  // override location.replace and assign to mark internal nav
+/* attempt to restore session from a valid transfer token (run immediately on load) */
+function restoreFromTransferIfNeeded(){
+  try {
+    if(getSessionLocal()) return; // already have session
+    const raw = localStorage.getItem(TRANSFER_KEY);
+    if(!raw) return;
+    const obj = JSON.parse(raw);
+    if(obj && obj.user && (Date.now() - (obj.ts||0) <= TRANSFER_TTL)){
+      // restore into sessionStorage for this tab
+      setSessionLocal(obj.user);
+      // remove transfer so other tabs won't reuse it
+      localStorage.removeItem(TRANSFER_KEY);
+    } else {
+      // stale token, remove
+      try { localStorage.removeItem(TRANSFER_KEY); } catch(e){}
+    }
+  } catch(e){}
+}
+
+/* run restore early */
+restoreFromTransferIfNeeded();
+
+/* ==== Internal-nav early marking (still used to help UX) ==== */
+function markInternalNavTimestamp(){
+  try { localStorage.setItem('cosmos_internal_nav_ts', String(Date.now())); } catch(e){}
+}
+
+/* Mark internal nav on common user events (pointerdown, click, submit, keydown) */
+(function installEarlyMarking(){
+  // programmatic override
   try {
     const nativeReplace = window.location.replace.bind(window.location);
     window.location.replace = function(url){
-      markInternalNav();
+      markInternalNavTimestamp();
       return nativeReplace(url);
     };
     if(window.location.assign){
       const nativeAssign = window.location.assign.bind(window.location);
       window.location.assign = function(url){
-        markInternalNav();
+        markInternalNavTimestamp();
         return nativeAssign(url);
       };
     }
-  } catch(e){ console.warn('Could not override location methods', e); }
+  } catch(e){}
 
-  // pointerdown earliest user event before navigation
-  document.addEventListener('pointerdown', function(ev){
+  document.addEventListener('pointerdown', (ev) => {
     const a = ev.target.closest && ev.target.closest('a');
     const btn = ev.target.closest && ev.target.closest('button');
     const form = ev.target.closest && ev.target.closest('form');
     if(a && a.href && a.target !== '_blank'){
       try {
         const url = new URL(a.href, location.href);
-        if(url.origin === location.origin && url.protocol.startsWith('http')) markInternalNav();
+        if(url.origin === location.origin && url.protocol.startsWith('http')) markInternalNavTimestamp();
       } catch(e){}
     } else if(btn || form){
-      markInternalNav();
+      markInternalNavTimestamp();
     }
   }, {capture:true, passive:true});
 
-  // click fallback
-  document.addEventListener('click', function(ev){
+  document.addEventListener('click', (ev) => {
     const a = ev.target.closest && ev.target.closest('a');
     if(a && a.href && a.target !== '_blank'){
       try {
         const url = new URL(a.href, location.href);
-        if(url.origin === location.origin && url.protocol.startsWith('http')) markInternalNav();
+        if(url.origin === location.origin && url.protocol.startsWith('http')) markInternalNavTimestamp();
       } catch(e){}
     }
   }, {capture:true});
 
-  // keydown (Enter) marking
-  document.addEventListener('keydown', function(ev){
+  document.addEventListener('keydown', (ev) => {
     if(ev.key === 'Enter'){
       const active = document.activeElement;
       if(active){
-        if(['A','BUTTON','INPUT','TEXTAREA','SELECT'].includes(active.tagName)) markInternalNav();
+        if(['A','BUTTON','INPUT','TEXTAREA','SELECT'].includes(active.tagName)) markInternalNavTimestamp();
         else {
           const a = active.closest && active.closest('a');
           const btn = active.closest && active.closest('button');
-          if(a || btn) markInternalNav();
+          if(a || btn) markInternalNavTimestamp();
         }
       }
     }
   }, {capture:true});
 
-  // form submit
-  document.addEventListener('submit', function(ev){
-    markInternalNav();
-  }, {capture:true});
+  document.addEventListener('submit', ()=> markInternalNavTimestamp(), {capture:true});
 })();
 
-/* --- Visibility/pagehide handler --- */
+/* === visibility/pagehide handling (clears session unless transfer/close internal) === */
 (function installVisibilityHandler(){
-  const THRESH = 5000; // ms window to treat hidden as internal nav
-  function handleHidden(){
+  const THRESH = 5000; // ms
+  function onHidden(){
     try {
-      const tsRaw = localStorage.getItem(INTERNAL_KEY);
-      if(tsRaw){
-        const ts = parseInt(tsRaw,10) || 0;
-        if(Date.now() - ts <= THRESH){
-          // internal navigation -> remove flag and keep session
-          localStorage.removeItem(INTERNAL_KEY);
-          return;
-        }
+      // If a transfer token exists and is fresh, allow it (login transfer)
+      const tr = localStorage.getItem(TRANSFER_KEY);
+      if(tr){
+        try {
+          const obj = JSON.parse(tr);
+          if(obj && obj.ts && (Date.now() - obj.ts <= TRANSFER_TTL)){
+            // it's a fresh transfer; keep session (new page will restore)
+            return;
+          }
+        } catch(e){}
       }
-      // not internal -> clear session
-      localStorage.removeItem(USER_KEY);
-      localStorage.removeItem(INTERNAL_KEY);
+
+      // If internal navigation timestamp is fresh, do not clear
+      const tRaw = localStorage.getItem('cosmos_internal_nav_ts');
+      if(tRaw && (Date.now() - parseInt(tRaw,10) <= THRESH)){
+        // consume the timestamp and keep session
+        try { localStorage.removeItem('cosmos_internal_nav_ts'); } catch(e){}
+        return;
+      }
+
+      // otherwise clear *sessionStorage* (localStorage used only for transfer)
+      try { sessionStorage.removeItem(SESSION_KEY); } catch(e){}
     } catch(e){
-      try { localStorage.removeItem(USER_KEY); localStorage.removeItem(INTERNAL_KEY); } catch(_) {}
+      try { sessionStorage.removeItem(SESSION_KEY); } catch(_) {}
     }
   }
-  document.addEventListener('visibilitychange', ()=> { if(document.hidden) handleHidden(); });
-  window.addEventListener('pagehide', ()=> handleHidden());
+
+  document.addEventListener('visibilitychange', ()=> { if(document.hidden) onHidden(); });
+  window.addEventListener('pagehide', ()=> onHidden());
 })();
 
-/* --- Menu helpers --- */
+/* === Menu helpers === */
 function openMenu(id){
   const m = document.getElementById(id);
   if(m){ m.style.transform = 'translateX(0)'; m.setAttribute('aria-hidden','false'); document.body.classList.add('menu-open'); const ov=document.getElementById('menuOverlay'); if(ov) ov.style.display='block'; }
@@ -142,26 +178,45 @@ function closeMenu(){
   const ov=document.getElementById('menuOverlay'); if(ov) ov.style.display='none';
   if(document.activeElement) document.activeElement.blur();
 }
-function toggleMenu(id){ const m=document.getElementById(id); if(!m) return; const hidden = m.getAttribute('aria-hidden')==='true'; if(hidden) openMenu(id); else closeMenu(); }
+function toggleMenu(id){
+  const m=document.getElementById(id);
+  if(!m) return;
+  const hidden = m.getAttribute('aria-hidden') === 'true';
+  if(hidden) openMenu(id); else closeMenu();
+}
 
-/* --- Auth --- */
+/* === Auth: login/logout === */
 function attemptLogin(ev){
   ev && ev.preventDefault();
   const email = (document.getElementById('email')||{}).value?.trim() || '';
-  const pass = (document.getElementById('password')||{}).value?.trim() || '';
+  const password = (document.getElementById('password')||{}).value?.trim() || '';
   const acc = ACCOUNTS[email];
-  if(acc && acc.pwd === pass){
-    setSession(email);
-    markInternalNav(); // mark before navigating
-    location.replace('dashboard.html');
+  if(acc && acc.pwd === password){
+    // set session in this tab synchronously
+    try { sessionStorage.setItem(SESSION_KEY, email); } catch(e){}
+    // set transfer token so the next page reliably restores if needed
+    createTransferToken(email);
+    // navigate
+    try { location.replace('dashboard.html'); } catch(e){ window.location.href = 'dashboard.html'; }
   } else {
     alert('Invalid credentials');
   }
 }
-function logoutNow(){ localStorage.removeItem(USER_KEY); localStorage.removeItem(INTERNAL_KEY); location.replace('logout.html'); }
+
+function logoutNow(){
+  try { sessionStorage.removeItem(SESSION_KEY); localStorage.removeItem(TRANSFER_KEY); localStorage.removeItem('cosmos_internal_nav_ts'); } catch(e){}
+  try { location.replace('logout.html'); } catch(e){ window.location.href='logout.html'; }
+}
 function logoutFromMenu(){ if(confirm('Logout?')) logoutNow(); }
 
-/* --- Favorites --- */
+/* === Helpers to read session (used by pages) === */
+function getCurrentUser(){
+  // attempt to restore from transfer if needed (called on page load)
+  restoreFromTransferIfNeeded();
+  return getSessionLocal();
+}
+
+/* === Favorites helpers === */
 function toggleFavorite(user, folder){
   if(!user) return;
   const key = `cosmos_favs_${user}`;
@@ -171,65 +226,74 @@ function toggleFavorite(user, folder){
   localStorage.setItem(key, JSON.stringify(arr));
 }
 
-/* --- Dashboard rendering --- */
+/* === Dashboard rendering === */
 function renderDashboard(){
-  const user = getSession();
-  if(!user){ location.replace('index.html'); return; }
-  history.replaceState(null,'',location.href);
+  const user = getCurrentUser();
+  if(!user){ try { location.replace('index.html'); } catch(e){ window.location.href='index.html'; } return; }
 
+  // update user tag
   const tag = document.getElementById('userTag');
   if(tag) tag.textContent = user;
 
   const container = document.getElementById('folders');
   if(!container) return;
   container.innerHTML = '';
+
   const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
 
-  allowed.forEach(f=>{
+  allowed.forEach(folder=>{
     const el = document.createElement('div');
     el.className = 'folder';
     const favs = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
-    const star = favs.includes(f) ? '★' : '☆';
-    el.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><span>${f}</span><button class="btn small-btn fav-toggle">${star}</button></div><span class="small">View</span>`;
+    const star = favs.includes(folder) ? '★' : '☆';
+    el.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><span>${folder}</span><button class="btn small-btn fav-toggle">${star}</button></div><span class="small">View</span>`;
 
-    el.addEventListener('click', ()=> {
-      markInternalNav();
-      location.replace(`viewer.html?folder=${encodeURIComponent(f)}`);
+    el.addEventListener('click', ()=>{
+      // set transfer only if sessionStorage missing on other page; setting transfer is harmless
+      createTransferToken(user);
+      try { location.replace(`viewer.html?folder=${encodeURIComponent(folder)}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(folder)}`; }
     });
 
     el.querySelector('.fav-toggle')?.addEventListener('click', (ev)=>{
       ev.stopPropagation();
-      toggleFavorite(user, f);
+      toggleFavorite(user, folder);
       const favs2 = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
       const btn = el.querySelector('.fav-toggle');
-      if(btn) btn.textContent = favs2.includes(f) ? '★' : '☆';
+      if(btn) btn.textContent = favs2.includes(folder) ? '★' : '☆';
     });
 
     container.appendChild(el);
   });
 
+  // attach UI buttons
   document.getElementById('logoutBtnTop')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
   document.getElementById('menuToggle')?.addEventListener('click', ()=> toggleMenu('sideMenu'));
   document.getElementById('menuOverlay')?.addEventListener('click', ()=> closeMenu());
 
-  window.addEventListener('popstate', ()=> { if(!getSession()) location.replace('index.html'); else history.replaceState(null,'',location.href); });
+  window.addEventListener('popstate', ()=> {
+    const u = getCurrentUser();
+    if(!u) { try{ location.replace('index.html'); } catch(e){ window.location.href='index.html'; } }
+    else history.replaceState(null,'',location.href);
+  });
 }
 
-/* --- Viewer --- */
+/* === Viewer init === */
 function initViewer(){
-  const user = getSession();
-  if(!user){ location.replace('index.html'); return; }
+  const user = getCurrentUser();
+  if(!user){ try { location.replace('index.html'); } catch(e){ window.location.href='index.html'; } return; }
   history.replaceState(null,'',location.href);
 
+  // UI wiring
   document.getElementById('menuToggleV')?.addEventListener('click', ()=> toggleMenu('sideMenuV'));
   document.getElementById('logoutBtnTopV')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
-  document.getElementById('backBtn')?.addEventListener('click', ()=> { markInternalNav(); location.replace('dashboard.html'); });
+  document.getElementById('backBtn')?.addEventListener('click', ()=> { createTransferToken(user); try{ location.replace('dashboard.html'); } catch(e){ window.location.href='dashboard.html'; } });
 
   const params = new URLSearchParams(window.location.search);
   const folder = params.get('folder');
-  if(!folder){ location.replace('dashboard.html'); return; }
+  if(!folder){ try { location.replace('dashboard.html'); } catch(e){ window.location.href='dashboard.html'; } return; }
+
   const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
-  if(!allowed.includes(folder)){ alert('Access denied'); location.replace('dashboard.html'); return; }
+  if(!allowed.includes(folder)){ alert('Access denied'); try { location.replace('dashboard.html'); } catch(e){ window.location.href='dashboard.html'; } return; }
 
   const tag = document.getElementById('userTagV') || document.getElementById('userTag');
   if(tag) tag.textContent = user;
@@ -253,14 +317,14 @@ function initViewer(){
   });
 
   document.getElementById('menuOverlay')?.addEventListener('click', ()=> closeMenu());
-  window.addEventListener('popstate', ()=> { if(!getSession()) location.replace('index.html'); else history.replaceState(null,'',location.href); });
+  window.addEventListener('popstate', ()=> { const u = getCurrentUser(); if(!u){ try{ location.replace('index.html') } catch(e){ window.location.href='index.html'; } } else history.replaceState(null,'',location.href); });
 }
 
-/* --- Search --- */
+/* === Search (prompt-based) === */
 function performSearch(query){
   if(!query || !query.trim()){ alert('Type a search term'); return; }
-  const user = getSession();
-  if(!user){ location.replace('index.html'); return; }
+  const user = getCurrentUser();
+  if(!user){ try{ location.replace('index.html'); } catch(e){ window.location.href='index.html'; } return; }
   const allowed = (ACCOUNTS[user] && ACCOUNTS[user].folders) ? ACCOUNTS[user].folders : [];
   const lc = query.toLowerCase();
   const results = [];
@@ -286,8 +350,8 @@ function performSearch(query){
         const choice = prompt('Search results:\n\n' + list + '\n\nEnter number to open (cancel to skip)');
         const num = parseInt(choice);
         if(num && num>0 && num<=results.length){
-          markInternalNav();
-          location.replace(`viewer.html?folder=${encodeURIComponent(results[num-1].folder)}&q=${encodeURIComponent(query)}`);
+          createTransferToken(user);
+          try { location.replace(`viewer.html?folder=${encodeURIComponent(results[num-1].folder)}&q=${encodeURIComponent(query)}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(results[num-1].folder)}&q=${encodeURIComponent(query)}`; }
         }
       }
     });
@@ -295,20 +359,20 @@ function performSearch(query){
 }
 function performSearchWrapper(q){ performSearch(q); }
 
-/* --- Favorites / Help --- */
+/* === Favorites / Help convenience === */
 function showFavorites(){
-  const user = getSession();
+  const user = getCurrentUser();
   if(!user){ alert('Not signed in'); return; }
   const arr = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
   if(!arr.length) alert('No favorites yet');
   else {
-    markInternalNav();
-    location.replace(`viewer.html?folder=${encodeURIComponent(arr[0])}`);
+    createTransferToken(user);
+    try { location.replace(`viewer.html?folder=${encodeURIComponent(arr[0])}`); } catch(e){ window.location.href = `viewer.html?folder=${encodeURIComponent(arr[0])}`; }
   }
 }
 function showHelp(){ alert('Help\nContact: hydramusic@gmail.com\nInstagram: @saaid_sarosh77'); }
 
-/* --- Export API --- */
+/* === Public API exported to pages === */
 window.LW = {
   attemptLogin,
   renderDashboard,
@@ -318,5 +382,5 @@ window.LW = {
   performSearch: performSearchWrapper,
   showFavorites,
   showHelp,
-  getSession
+  getSession: getCurrentUser
 };

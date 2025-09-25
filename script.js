@@ -1,6 +1,6 @@
-/* script.js - Cosmos app (fixed navigation/session handling)
-   Replaces location.replace to mark internal navigations,
-   central visibility/pagehide handler ignores internal navs.
+/* script.js - Cosmos app
+   Fix: mark same-origin anchor clicks as internal nav so visibility handler
+   doesn't clear session on internal navigation.
 */
 
 /* --- Accounts & folders --- */
@@ -31,62 +31,69 @@ function clearSession(){ sessionStorage.removeItem('cosmos_user'); }
 function getSession(){ return sessionStorage.getItem('cosmos_user'); }
 
 /* --- INTERNAL NAV FLAG ---
-   We need to avoid clearing session when the user is navigating between our pages.
-   Use sessionStorage key 'cosmos_internal_nav' to mark internal navigation.
-   We'll also override window.location.replace/assign to set this flag automatically.
+   Set sessionStorage 'cosmos_internal_nav' before internal navigations
 */
+
+/* 1) Intercept programmatic navigations (replace/assign) */
 (function installNavInterceptor(){
   try {
     const nativeReplace = window.location.replace.bind(window.location);
     window.location.replace = function(url){
-      try { sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e) {}
+      try { sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e){}
       return nativeReplace(url);
     };
-
-    // also intercept assign (some code might use it)
     const nativeAssign = window.location.assign ? window.location.assign.bind(window.location) : null;
     if(nativeAssign){
       window.location.assign = function(url){
-        try { sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e) {}
+        try { sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e){}
         return nativeAssign(url);
       };
     }
-  } catch(e) {
-    // fail silently if environment prevents override
-    console.warn('nav interceptor not installed', e);
-  }
+  } catch(e){ console.warn('nav interceptor not installed', e); }
 })();
 
-/* --- centralized visibility / pagehide handler ---
-   If page becomes hidden because of an internal nav, we clear the internal flag and keep session.
-   Otherwise (user switches tab, opens speed-dial, closes page) -> clear session.
-*/
+/* 2) Intercept user link clicks (same-origin anchors) */
+(function installAnchorInterceptor(){
+  document.addEventListener('click', function(e){
+    // find nearest anchor element
+    const a = e.target.closest && e.target.closest('a');
+    if(!a || !a.href) return;
+    try {
+      const href = a.href;
+      const url = new URL(href, location.href);
+      // only mark internal navigations (same origin, and not just hash navigation)
+      if(url.origin === location.origin){
+        // allow mailto/tel etc to pass
+        if(url.protocol.startsWith('http')){
+          sessionStorage.setItem('cosmos_internal_nav','1');
+        }
+      }
+    } catch(err){
+      // ignore malformed hrefs
+    }
+  }, true); // use capture to run early
+})();
+
+/* --- centralized visibility / pagehide handler --- */
 (function installVisibilityHandler(){
   function handleHidden(){
     try {
       const internal = sessionStorage.getItem('cosmos_internal_nav');
       if(internal){
-        // internal navigation: remove flag and do NOT clear session
+        // internal nav: remove flag and keep session
         sessionStorage.removeItem('cosmos_internal_nav');
       } else {
         // actual leave/tab-switch: clear session
         sessionStorage.removeItem('cosmos_user');
       }
     } catch(e){
-      // fallback: clear session to be safe
-      try { sessionStorage.removeItem('cosmos_user'); } catch(_){}
+      try { sessionStorage.removeItem('cosmos_user'); } catch(_) {}
     }
   }
-
   document.addEventListener('visibilitychange', () => {
     if(document.hidden) handleHidden();
   });
-
-  // pagehide covers some navigation cases in mobile browsers
-  window.addEventListener('pagehide', (ev) => {
-    // If persisted (bfcache), we still want to clear unless internal nav flagged
-    handleHidden();
-  });
+  window.addEventListener('pagehide', (ev) => { handleHidden(); });
 })();
 
 /* --- Menu helpers --- */
@@ -111,7 +118,7 @@ function attemptLogin(ev){
   const acc = ACCOUNTS[email];
   if(acc && acc.pwd === pass){
     setSession(email);
-    // internal nav flag set by our overridden location.replace
+    // navigation will be intercepted and flag set
     location.replace('dashboard.html');
   } else alert('Invalid credentials');
 }
@@ -148,11 +155,12 @@ function renderDashboard(){
     const favs = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
     const star = favs.includes(f) ? '★' : '☆';
     el.innerHTML = `<div style="display:flex;gap:10px;align-items:center"><span>${f}</span><button class="btn small-btn fav-toggle">${star}</button></div><span class="small">View</span>`;
+
     el.addEventListener('click', ()=> {
-      // mark internal nav and navigate
-      try{ sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e) {}
+      try{ sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e){}
       location.replace(`viewer.html?folder=${encodeURIComponent(f)}`);
     });
+
     el.querySelector('.fav-toggle')?.addEventListener('click', (ev)=>{
       ev.stopPropagation();
       toggleFavorite(user, f);
@@ -161,6 +169,7 @@ function renderDashboard(){
       const btn = el.querySelector('.fav-toggle');
       if(btn) btn.textContent = favs2.includes(f) ? '★' : '☆';
     });
+
     container.appendChild(el);
   });
 
@@ -179,7 +188,7 @@ function initViewer(){
   document.getElementById('menuToggleV')?.addEventListener('click', ()=> toggleMenu('sideMenuV'));
   document.getElementById('logoutBtnTopV')?.addEventListener('click', ()=> { if(confirm('Logout?')) logoutNow(); });
   document.getElementById('backBtn')?.addEventListener('click', ()=> {
-    try{ sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e) {}
+    try{ sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e){}
     location.replace('dashboard.html');
   });
 
@@ -210,13 +219,11 @@ function initViewer(){
     alert(favsNow.includes(folder) ? `${folder} added to favorites` : `${folder} removed from favorites`);
   });
 
-  // menu overlay close
   document.getElementById('menuOverlay')?.addEventListener('click', ()=> closeMenu());
-
   window.addEventListener('popstate', ()=> { if(!getSession()) location.replace('index.html'); else history.replaceState(null,'',location.href); });
 }
 
-/* --- Search (simple prompt-based) --- */
+/* --- Search --- */
 function performSearch(query){
   if(!query || !query.trim()){ alert('Type a search term'); return; }
   const user = getSession();
@@ -257,14 +264,13 @@ function performSearch(query){
 /* convenience wrapper */
 function performSearchWrapper(q){ performSearch(q); }
 
-/* --- Favorites / Help quick functions --- */
+/* --- Favorites / Help --- */
 function showFavorites(){
   const user = getSession();
   if(!user){ alert('Not signed in'); return; }
   const arr = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
   if(!arr.length) alert('No favorites yet');
   else {
-    // open first favorite
     try{ sessionStorage.setItem('cosmos_internal_nav','1'); } catch(e){}
     location.replace(`viewer.html?folder=${encodeURIComponent(arr[0])}`);
   }

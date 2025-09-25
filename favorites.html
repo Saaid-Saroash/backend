@@ -50,12 +50,11 @@
 
   <script src="script.js"></script>
   <script>
-    // show favorites list
     document.getElementById('menuToggleF').addEventListener('click', ()=> toggleMenu('sideMenuF'));
     document.getElementById('menuOverlay').addEventListener('click', ()=> closeMenu());
     document.getElementById('logoutBtnTopF').addEventListener('click', ()=> { if(confirm('Logout?')) LW.logoutNow(); });
-    // populate favorites
-    (function(){
+
+    (function populate(){
       const user = LW.getSession();
       if(!user){ location.replace('index.html'); return; }
       document.getElementById('userTagF').textContent = user;
@@ -66,7 +65,7 @@
       arr.forEach(f=>{
         const el = document.createElement('div');
         el.className = 'folder';
-        el.innerHTML = `<span>${f}</span><span class="small"><button class="btn" onclick="location.replace('viewer.html?folder=${encodeURIComponent(f)}')">Open</button></span>`;
+        el.innerHTML = `<span>${f}</span><span class="small"><button class="btn" onclick="(function(){ sessionStorage.setItem('cosmos_internal_nav_ts',String(Date.now())); location.replace('viewer.html?folder=${encodeURIComponent(f)}') })()">Open</button></span>`;
         container.appendChild(el);
       });
     })();

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cosmos - Help</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topnav">
+    <button id="menuToggleH" class="hamburger">☰</button>
+    <div class="nav-left">
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo circle"/>
+      <div class="site-title">Cosmos</div>
+    </div>
+    <div class="nav-right">
+      <div id="userTagH" class="small nav-user">user</div>
+      <button id="logoutBtnTopH" class="btn nav-logout">Logout</button>
+    </div>
+  </header>
+
+  <div id="menuOverlay" class="menu-overlay" onclick="closeMenu()"></div>
+
+  <nav id="sideMenuH" class="side-menu" aria-hidden="true">
+    <div class="side-header">
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="side-logo circle"/>
+      <div class="side-title">Cosmos</div>
+    </div>
+    <ul class="side-list">
+      <li><a href="dashboard.html" onclick="closeMenu()">Home</a></li>
+      <li><a href="favorites.html" onclick="closeMenu()">Favorites</a></li>
+      <li><a href="help.html" onclick="closeMenu()">Help</a></li>
+      <li class="side-divider"></li>
+      <li><a href="logout.html" onclick="closeMenu()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <main class="page-wrap">
+    <div class="container">
+      <div class="header">
+        <div class="title">Help & Contact</div>
+      </div>
+      <div class="box">
+        <p class="small"><strong>Contact:</strong> hydramusic@gmail.com</p>
+        <p class="small"><strong>Instagram:</strong> <a class="link" href="https://instagram.com/saaid_sarosh77" target="_blank">@saaid_sarosh77</a></p>
+        <p class="small">For feature requests, feedback or issues, email the contact address above.</p>
+      </div>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    document.getElementById('menuToggleH').addEventListener('click', ()=> toggleMenu('sideMenuH'));
+    document.getElementById('menuOverlay').addEventListener('click', ()=> closeMenu());
+    document.getElementById('logoutBtnTopH').addEventListener('click', ()=> { if(confirm('Logout?')) LW.logoutNow(); });
+    (function(){ const u = LW.getSession(); if(!u) location.replace('index.html'); else document.getElementById('userTagH').textContent = u; })();
+  </script>
+</body>
+</html>

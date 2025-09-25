@@ -5,25 +5,31 @@
   <title>Cosmos - Dashboard</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <meta http-equiv="cache-control" content="no-store">
   <meta http-equiv="pragma" content="no-cache">
 </head>
 <body>
-  <!-- Top nav -->
   <header class="topnav">
-    <button id="menuToggle" class="hamburger">☰</button>
+    <button id="menuToggle" class="hamburger" aria-label="Open menu">☰</button>
     <div class="nav-left">
       <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo circle"/>
       <div class="site-title">Cosmos</div>
     </div>
+    <div class="nav-mid">
+      <input id="searchInput" class="input" placeholder="Search files or contents..." />
+      <button id="searchBtn" class="btn">Search</button>
+    </div>
     <div class="nav-right">
-      <div id="userTag" class="small nav-user">not signed</div>
+      <div id="userTag" class="small nav-user">Not signed in</div>
       <button id="logoutBtnTop" class="btn nav-logout">Logout</button>
     </div>
   </header>
 
-  <!-- Slide menu -->
+  <!-- overlay for clicking outside menu -->
+  <div id="menuOverlay" class="menu-overlay" onclick="closeMenu()"></div>
+
   <nav id="sideMenu" class="side-menu" aria-hidden="true">
     <div class="side-header">
       <img src="assets/cosmos.jpg" alt="Cosmos" class="side-logo circle"/>
@@ -31,36 +37,57 @@
     </div>
     <ul class="side-list">
       <li><a href="dashboard.html" onclick="closeMenu()">Home</a></li>
-      <li><a href="#" onclick="LW.searchSite(); closeMenu()">Search</a></li>
-      <li><a href="#" onclick="LW.showFavorites(); closeMenu()">Favorites</a></li>
-      <li><a href="#" onclick="LW.showHelp(); closeMenu()">Help</a></li>
+      <li><a href="favorites.html" onclick="closeMenu()">Favorites</a></li>
+      <li><a href="help.html" onclick="closeMenu()">Help</a></li>
       <li class="side-divider"></li>
-      <li><a href="#" onclick="LW.logoutFromMenu()">Logout</a></li>
+      <li><a href="logout.html" onclick="closeMenu()">Logout</a></li>
     </ul>
   </nav>
 
-  <div class="page-wrap" id="pageWrap">
-    <main class="container">
+  <main class="page-wrap" id="pageWrap">
+    <div class="container">
       <div class="header" style="align-items:center;gap:18px">
         <div class="title">Dashboard — Files</div>
       </div>
 
       <div class="grid" style="margin-top:16px">
         <div class="box">
-          <div class="small">Your files</div>
+          <div class="small">Your Files</div>
           <div id="folders" class="folders" style="margin-top:10px"></div>
         </div>
+
         <div class="box">
-          <div class="small">Quick actions</div>
-          <div style="margin-top:12px" class="small">
-            Tap a file to open it. Use the menu (☰) to search, help, favorites or logout.
+          <div class="small">Quick Actions</div>
+          <div style="margin-top:12px" class="small">Tap a file to open it. Use the menu (☰) to access Favorites, Help or Logout.</div>
+          <div style="margin-top:14px">
+            <button id="openAllBtn" class="btn">Open First File</button>
           </div>
         </div>
       </div>
-    </main>
-  </div>
+    </div>
+  </main>
 
   <script src="script.js"></script>
-  <script>LW.renderDashboard();</script>
+  <script>
+    // behavior: set title + favicon and attach UI handlers
+    document.title = 'cosmos-dashboard';
+    const f = document.querySelector('link[rel="icon"]');
+    if(f) f.href = 'assets/cosmos.jpg';
+
+    // open/close menu via script.js functions
+    document.getElementById('menuToggle').addEventListener('click', ()=> toggleMenu('sideMenu'));
+    document.getElementById('menuOverlay').addEventListener('click', ()=> closeMenu());
+
+    // search behavior
+    document.getElementById('searchBtn').addEventListener('click', ()=> { const q=document.getElementById('searchInput').value.trim(); if(q) LW.performSearch(q); });
+    document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); const q=e.target.value.trim(); if(q) LW.performSearch(q); }});
+
+    // render folders
+    LW.renderDashboard();
+
+    // hide session on visibility change so returning requires password
+    document.addEventListener('visibilitychange', ()=> { if(document.hidden) sessionStorage.removeItem('cosmos_user'); });
+    window.addEventListener('pagehide', ()=> sessionStorage.removeItem('cosmos_user'));
+  </script>
 </body>
 </html>

@@ -7,8 +7,6 @@
   <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <meta http-equiv="cache-control" content="no-store">
-  <meta http-equiv="pragma" content="no-cache">
 </head>
 <body>
   <header class="topnav">
@@ -27,7 +25,6 @@
     </div>
   </header>
 
-  <!-- overlay for clicking outside menu -->
   <div id="menuOverlay" class="menu-overlay" onclick="closeMenu()"></div>
 
   <nav id="sideMenu" class="side-menu" aria-hidden="true">
@@ -69,25 +66,23 @@
 
   <script src="script.js"></script>
   <script>
-    // behavior: set title + favicon and attach UI handlers
+    // attach handlers after script loads
     document.title = 'cosmos-dashboard';
-    const f = document.querySelector('link[rel="icon"]');
-    if(f) f.href = 'assets/cosmos.jpg';
+    const f = document.querySelector('link[rel="icon"]'); if(f) f.href = 'assets/cosmos.jpg';
 
-    // open/close menu via script.js functions
     document.getElementById('menuToggle').addEventListener('click', ()=> toggleMenu('sideMenu'));
     document.getElementById('menuOverlay').addEventListener('click', ()=> closeMenu());
 
-    // search behavior
-    document.getElementById('searchBtn').addEventListener('click', ()=> { const q=document.getElementById('searchInput').value.trim(); if(q) LW.performSearch(q); });
+    document.getElementById('searchBtn').addEventListener('click', ()=> {
+      const q = document.getElementById('searchInput').value.trim();
+      if(q) LW.performSearch(q);
+    });
     document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); const q=e.target.value.trim(); if(q) LW.performSearch(q); }});
 
-    // render folders
-    LW.renderDashboard();
+    document.getElementById('logoutBtnTop').addEventListener('click', ()=> { if(confirm('Logout?')) LW.logoutNow(); });
+    document.getElementById('openAllBtn').addEventListener('click', ()=> LW.showFavorites ? LW.showFavorites() : null);
 
-    // hide session on visibility change so returning requires password
-    document.addEventListener('visibilitychange', ()=> { if(document.hidden) sessionStorage.removeItem('cosmos_user'); });
-    window.addEventListener('pagehide', ()=> sessionStorage.removeItem('cosmos_user'));
+    LW.renderDashboard();
   </script>
 </body>
 </html>

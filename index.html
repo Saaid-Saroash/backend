@@ -7,8 +7,6 @@
   <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <meta http-equiv="cache-control" content="no-store">
-  <meta http-equiv="pragma" content="no-cache">
 </head>
 <body class="centered-vertical">
   <div class="container box login-box" style="width:420px;max-width:96%;">
@@ -17,7 +15,7 @@
       <div class="title">Cosmos — Login</div>
     </div>
 
-    <form onsubmit="LW.attemptLogin(event)" style="margin-top:16px" autocomplete="on">
+    <form id="loginForm" onsubmit="LW.attemptLogin(event)" style="margin-top:16px" autocomplete="on">
       <label class="small" for="email">Email</label>
       <input id="email" class="input" type="text" placeholder="Email" required autocomplete="username" />
       <label class="small" for="password" style="margin-top:8px">Password</label>
@@ -31,11 +29,11 @@
 
   <script src="script.js"></script>
   <script>
-    // ensure title and favicon are correct for this page
+    // Page title + favicon
     document.title = 'cosmos-login';
     const f = document.querySelector('link[rel="icon"]');
-    if(f) f.href = 'assets/cosmos.jpg';
-    // NOTE: Do NOT clear session here — clearing is handled on dashboard/viewer so login -> dashboard works.
+    if (f) f.href = 'assets/cosmos.jpg';
+    // Keep index.html passive — no visibility clearing here.
   </script>
 </body>
 </html>

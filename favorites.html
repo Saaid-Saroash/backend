@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Cosmos - Favorites</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topnav">
+    <button id="menuToggleF" class="hamburger">☰</button>
+    <div class="nav-left">
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo circle"/>
+      <div class="site-title">Cosmos</div>
+    </div>
+    <div class="nav-right">
+      <div id="userTagF" class="small nav-user">user</div>
+      <button id="logoutBtnTopF" class="btn nav-logout">Logout</button>
+    </div>
+  </header>
+
+  <div id="menuOverlay" class="menu-overlay" onclick="closeMenu()"></div>
+
+  <nav id="sideMenuF" class="side-menu" aria-hidden="true">
+    <div class="side-header">
+      <img src="assets/cosmos.jpg" alt="Cosmos" class="side-logo circle"/>
+      <div class="side-title">Cosmos</div>
+    </div>
+    <ul class="side-list">
+      <li><a href="dashboard.html" onclick="closeMenu()">Home</a></li>
+      <li><a href="favorites.html" onclick="closeMenu()">Favorites</a></li>
+      <li><a href="help.html" onclick="closeMenu()">Help</a></li>
+      <li class="side-divider"></li>
+      <li><a href="logout.html" onclick="closeMenu()">Logout</a></li>
+    </ul>
+  </nav>
+
+  <main class="page-wrap">
+    <div class="container">
+      <div class="header">
+        <div class="title">Favorites</div>
+      </div>
+      <div class="box">
+        <div id="favList" class="folders"></div>
+      </div>
+    </div>
+  </main>
+
+  <script src="script.js"></script>
+  <script>
+    // show favorites list
+    document.getElementById('menuToggleF').addEventListener('click', ()=> toggleMenu('sideMenuF'));
+    document.getElementById('menuOverlay').addEventListener('click', ()=> closeMenu());
+    document.getElementById('logoutBtnTopF').addEventListener('click', ()=> { if(confirm('Logout?')) LW.logoutNow(); });
+    // populate favorites
+    (function(){
+      const user = LW.getSession();
+      if(!user){ location.replace('index.html'); return; }
+      document.getElementById('userTagF').textContent = user;
+      const arr = JSON.parse(localStorage.getItem(`cosmos_favs_${user}`) || '[]');
+      const container = document.getElementById('favList');
+      if(!arr.length){ container.innerHTML = '<div class="small">You have no favorites yet.</div>'; return; }
+      container.innerHTML = '';
+      arr.forEach(f=>{
+        const el = document.createElement('div');
+        el.className = 'folder';
+        el.innerHTML = `<span>${f}</span><span class="small"><button class="btn" onclick="location.replace('viewer.html?folder=${encodeURIComponent(f)}')">Open</button></span>`;
+        container.appendChild(el);
+      });
+    })();
+  </script>
+</body>
+</html>

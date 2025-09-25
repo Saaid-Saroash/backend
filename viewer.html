@@ -5,6 +5,7 @@
   <title>Cosmos - Viewer</title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <meta http-equiv="cache-control" content="no-store">
   <meta http-equiv="pragma" content="no-cache">
@@ -16,11 +17,17 @@
       <img src="assets/cosmos.jpg" alt="Cosmos" class="nav-logo circle"/>
       <div class="site-title">Cosmos</div>
     </div>
+    <div class="nav-mid">
+      <input id="searchInputV" class="input" placeholder="Search files or contents..." />
+      <button id="searchBtnV" class="btn">Search</button>
+    </div>
     <div class="nav-right">
       <div id="userTagV" class="small nav-user">user</div>
       <button id="logoutBtnTopV" class="btn nav-logout">Logout</button>
     </div>
   </header>
+
+  <div id="menuOverlay" class="menu-overlay" onclick="closeMenu()"></div>
 
   <nav id="sideMenuV" class="side-menu" aria-hidden="true">
     <div class="side-header">
@@ -29,16 +36,15 @@
     </div>
     <ul class="side-list">
       <li><a href="dashboard.html" onclick="closeMenu()">Home</a></li>
-      <li><a href="#" onclick="LW.searchSite(); closeMenu()">Search</a></li>
-      <li><a href="#" onclick="LW.showFavorites(); closeMenu()">Favorites</a></li>
-      <li><a href="#" onclick="LW.showHelp(); closeMenu()">Help</a></li>
+      <li><a href="favorites.html" onclick="closeMenu()">Favorites</a></li>
+      <li><a href="help.html" onclick="closeMenu()">Help</a></li>
       <li class="side-divider"></li>
-      <li><a href="#" onclick="LW.logoutFromMenu()">Logout</a></li>
+      <li><a href="logout.html" onclick="closeMenu()">Logout</a></li>
     </ul>
   </nav>
 
-  <div class="page-wrap" id="pageWrapV">
-    <main class="container">
+  <main class="page-wrap" id="pageWrapV">
+    <div class="container">
       <div class="header">
         <div class="title" id="folderName">Folder</div>
       </div>
@@ -47,13 +53,31 @@
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button id="backBtn" class="btn">Back</button>
           <button id="downloadBtnViewer" class="btn">Download</button>
-          <button id="favBtn" class="btn">Add to Favorites</button>
+          <button id="favBtn" class="btn">☆ Add to Favorites</button>
         </div>
       </div>
-    </main>
-  </div>
+    </div>
+  </main>
 
   <script src="script.js"></script>
-  <script>LW.initViewer();</script>
+  <script>
+    document.title = 'cosmos-viewer';
+    const f = document.querySelector('link[rel="icon"]');
+    if(f) f.href = 'assets/cosmos.jpg';
+
+    // events that close menu by clicking overlay
+    document.getElementById('menuToggleV').addEventListener('click', ()=> toggleMenu('sideMenuV'));
+    document.getElementById('menuOverlay').addEventListener('click', ()=> closeMenu());
+
+    LW.initViewer();
+
+    // search wiring on viewer
+    document.getElementById('searchBtnV').addEventListener('click', ()=> { const q=document.getElementById('searchInputV').value.trim(); if(q) LW.performSearch(q); });
+    document.getElementById('searchInputV').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); const q=e.target.value.trim(); if(q) LW.performSearch(q); }});
+
+    // clear session on hide so returning requires password
+    document.addEventListener('visibilitychange', ()=> { if(document.hidden) sessionStorage.removeItem('cosmos_user'); });
+    window.addEventListener('pagehide', ()=> sessionStorage.removeItem('cosmos_user'));
+  </script>
 </body>
 </html>

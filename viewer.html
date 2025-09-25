@@ -7,8 +7,6 @@
   <link rel="icon" type="image/jpg" href="assets/cosmos.jpg">
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <meta http-equiv="cache-control" content="no-store">
-  <meta http-equiv="pragma" content="no-cache">
 </head>
 <body>
   <header class="topnav">
@@ -62,22 +60,14 @@
   <script src="script.js"></script>
   <script>
     document.title = 'cosmos-viewer';
-    const f = document.querySelector('link[rel="icon"]');
-    if(f) f.href = 'assets/cosmos.jpg';
+    const f = document.querySelector('link[rel="icon"]'); if(f) f.href = 'assets/cosmos.jpg';
 
-    // events that close menu by clicking overlay
     document.getElementById('menuToggleV').addEventListener('click', ()=> toggleMenu('sideMenuV'));
     document.getElementById('menuOverlay').addEventListener('click', ()=> closeMenu());
-
-    LW.initViewer();
-
-    // search wiring on viewer
     document.getElementById('searchBtnV').addEventListener('click', ()=> { const q=document.getElementById('searchInputV').value.trim(); if(q) LW.performSearch(q); });
     document.getElementById('searchInputV').addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); const q=e.target.value.trim(); if(q) LW.performSearch(q); }});
 
-    // clear session on hide so returning requires password
-    document.addEventListener('visibilitychange', ()=> { if(document.hidden) sessionStorage.removeItem('cosmos_user'); });
-    window.addEventListener('pagehide', ()=> sessionStorage.removeItem('cosmos_user'));
+    LW.initViewer();
   </script>
 </body>
 </html>

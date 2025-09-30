@@ -1,11 +1,14 @@
 cd $env:USERPROFILE\Downloads
 python .\insta.py -s "65860131821%3Ak1e3BHlkSTnTHV%3A25%3AAYjbaOvI57PlBFt5P7FxmlbQP1zVMyCAjKbHi2c8Sgthids" -u saaid_sarosh77
+
+python app.py
 ___________________________________________________________________________________________________________________________________
 pip install requests
 cd $env:USERPROFILE\Downloads
 python -m venv venv
 .\venv\Scripts\Activate.ps1
 pip install requests
+pip install flask
 
 INSTA.PY
 ________________________________________________________________________________________________________________________________________
@@ -291,6 +294,160 @@ if __name__ == "__main__":
     main()
 ______________________________________________________________________________________________________________________________________________
 
-pip install flask requests
+APP.PY
 
-python .\insta_web_tracker.py
+from flask import Flask, render_template, request, jsonify
+import requests
+import json
+import os
+import time
+from typing import Optional, Tuple, Dict
+
+app = Flask(__name__)
+
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
+APP_ID = "936619743392459"
+FOLLOWERS_SNAPSHOT_FILENAME = "followers_snapshot.json"
+FOLLOWINGS_SNAPSHOT_FILENAME = "followings_snapshot.json"
+TIMEOUT = 15
+PAGE_SIZE = 200
+
+# Helper functions (same as before)
+def build_session(sessionid: str) -> requests.Session:
+    s = requests.Session()
+    s.headers.update({
+        "User-Agent": USER_AGENT,
+        "Referer": "https://www.instagram.com/",
+        "X-IG-App-ID": APP_ID,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+    })
+    s.cookies.set("sessionid", sessionid, domain=".instagram.com")
+    return s
+
+def resolve_userid(session: requests.Session, username: Optional[str], userid: Optional[str]) -> Optional[Tuple[str, str]]:
+    if username:
+        url = f"https://i.instagram.com/api/v1/users/web_profile_info/?username={username}"
+        try:
+            r = session.get(url, timeout=TIMEOUT)
+            r.raise_for_status()
+            data = r.json()
+            user = data.get("data", {}).get("user")
+            if user and ("pk" in user or "id" in user):
+                uid = str(user.get("pk") or user.get("id"))
+                uname = user.get("username") or username
+                return uid, uname
+        except requests.exceptions.RequestException as e:
+            print(f"Error resolving username {username}: {e}")
+        return None
+    if userid:
+        url = f"https://i.instagram.com/api/v1/users/{userid}/info/"
+        try:
+            r = session.get(url, timeout=TIMEOUT)
+            r.raise_for_status()
+            js = r.json()
+            u = js.get("user")
+            if u and ("username" in u):
+                return str(userid), u.get("username")
+        except requests.exceptions.RequestException as e:
+            print(f"Error resolving user ID {userid}: {e}")
+        return None
+    return None
+
+def fetch_followers(session: requests.Session, user_id: str) -> Optional[Dict[str, Dict]]:
+    return fetch_relationship_data(session, user_id, "followers")
+
+def fetch_followings(session: requests.Session, user_id: str) -> Optional[Dict[str, Dict]]:
+    return fetch_relationship_data(session, user_id, "following")
+
+def fetch_relationship_data(session: requests.Session, user_id: str, relationship: str) -> Optional[Dict[str, Dict]]:
+    data = {}
+    url_template = f"https://i.instagram.com/api/v1/friendships/{user_id}/{relationship}/?count={PAGE_SIZE}"
+    next_max_id = None
+    tries = 0
+    while True:
+        tries += 1
+        url = url_template + (f"&max_id={next_max_id}" if next_max_id else "")
+        try:
+            r = session.get(url, timeout=TIMEOUT)
+            r.raise_for_status()
+        except requests.exceptions.RequestException as e:
+            print(f"Error fetching {relationship}: {e}")
+            return None
+
+        js = r.json()
+        users = js.get("users", [])
+        for u in users:
+            pk = str(u.get("pk") or u.get("id"))
+            data[pk] = {
+                "username": u.get("username"),
+                "full_name": u.get("full_name"),
+                "profile_pic_url": u.get("profile_pic_url") or u.get("profile_pic_url_hd"),
+            }
+
+        next_max_id = js.get("next_max_id")
+        if not next_max_id:
+            break
+        time.sleep(1.0)
+
+    return data
+
+def load_snapshot(filename: str) -> Dict[str, Dict]:
+    if not os.path.exists(filename):
+        return {}
+    try:
+        with open(filename, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading snapshot: {e}")
+        return {}
+
+def save_snapshot(data: Dict[str, Dict], filename: str):
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"Error saving snapshot: {e}")
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+@app.route('/track', methods=['POST'])
+def track():
+    sessionid = request.form['sessionid']
+    username = request.form.get('username')
+    user_id = request.form.get('user_id')
+    if not username and not user_id:
+        return jsonify({'error': 'Provide either username or user_id'}), 400
+
+    session = build_session(sessionid)
+    resolved = resolve_userid(session, username, user_id)
+    if not resolved:
+        return jsonify({'error': 'Could not resolve user'}), 400
+
+    target_uid, canonical_username = resolved
+    followers = fetch_followers(session, target_uid)
+    followings = fetch_followings(session, target_uid)
+
+    if followers is None or followings is None:
+        return jsonify({'error': 'Failed to fetch data'}), 500
+
+    # Optionally, you can process the diff between old and new snapshots here
+    save_snapshot(followers, FOLLOWERS_SNAPSHOT_FILENAME)
+    save_snapshot(followings, FOLLOWINGS_SNAPSHOT_FILENAME)
+
+    return jsonify({
+        'followers': len(followers),
+        'followings': len(followings),
+        'followers_data': followers,
+        'followings_data': followings
+    })
+
+if __name__ == '__main__':
+    app.run(debug=True)
+___________________________________________________________________________________________________________________________________________

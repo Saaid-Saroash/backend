@@ -81,6 +81,7 @@ function openMenu(menuEl){
   const ov = getOrCreateOverlay();
   ov.style.display = 'block';
 }
+
 function closeMenu(){
   const menus = document.querySelectorAll('.side-menu');
   menus.forEach(m=>{
@@ -91,13 +92,14 @@ function closeMenu(){
   const ov = document.getElementById('menuOverlay');
   if(ov) ov.style.display = 'none';
 }
+
 function toggleMenuForPage(){
-  // toggles the first .side-menu found on current page
   const menu = document.querySelector('.side-menu');
   if(!menu) return;
   const hidden = menu.getAttribute('aria-hidden') === 'true';
   if(hidden) openMenu(menu); else closeMenu();
 }
+
 function getOrCreateOverlay(){
   let ov = document.getElementById('menuOverlay');
   if(!ov){
@@ -110,12 +112,10 @@ function getOrCreateOverlay(){
   return ov;
 }
 
-/* close menu when clicking outside or pressing Escape */
 (function installGlobalMenuClose(){
-  // ensure overlay present (some pages already have it in HTML; safe to re-create)
-  getOrCreateOverlay();
+  getOrCreateOverlay(); 
 
-  // click outside side-menu -> close
+  // Click outside side-menu -> close
   document.addEventListener('click', function(e){
     const menuOpen = document.body.classList.contains('menu-open');
     if(!menuOpen) return;
@@ -127,11 +127,22 @@ function getOrCreateOverlay(){
     }
   }, true);
 
-  // press Escape -> close
+  // Press Escape -> close
   document.addEventListener('keydown', function(e){
     if(e.key === 'Escape') closeMenu();
   });
 })();
+
+/* Bind hamburger buttons (any with class .hamburger) */
+(function bindHamburgers(){
+  document.addEventListener('click', function(e){
+    const btn = e.target.closest && e.target.closest('.hamburger');
+    if(!btn) return;
+    e.preventDefault();
+    toggleMenuForPage();
+  }, true);
+})();
+
 
 /* bind hamburger buttons (any with class .hamburger) */
 (function bindHamburgers(){
